@@ -60,6 +60,34 @@ Introduce the question to your audience. Suppose that they _could_ be interested
 ## (3 points) Task 1a: CO2 data
 Conduct a comprehensive Exploratory Data Analysis on the `co2` series. This should include (without being limited to) a [description of how, where and why ](https://gml.noaa.gov/ccgg/about/co2_measurements.html) the data is generated, a thorough investigation of the trend, seasonal and irregular elements. Trends both in levels and growth rates should be discussed (consider expressing longer-run growth rates as annualized averages).
 
+```{r}
+head(co2)
+glimpse(co2)
+df <- tsibble::as_tsibble(co2) %>%
+  filter(index < lubridate::ymd('1998-01-01'))
+
+# non ggplot version
+par(mfrow=c(2,2))
+plot(df, type="l", xlab="time", ylab="CO2 ppm", col="cornflowerblue", main="Time Series")
+acf(df, col="darkorange2", main="ACF")
+pacf(df, col="gold3", main="PACF")
+hist(df$value, xlab = "CO2 ppm", main="Histogram of CO2 ppm")
+```
+
+How data was generated
+ - where (hawaii)
+ - why (study photosynthesis)
+ - how (dont know)
+ 
+```{r use diff to remove trend and seasonality}
+# https://atsa-es.github.io/atsa-labs/sec-tslab-differencing-to-remove-a-trend-or-seasonal-effects.html
+plot(diff(df$value, lag = 1), ylab = expression(paste(nabla^1, "CO"[1])), type='l')
+plot(diff(df$value, lag = 2), ylab = expression(paste(nabla^2, "CO"[2])), type="o")
+plot(diff(diff(df$value, lag = 2),lag = 12), ylab = expression(paste(nabla,"(",nabla^2, "CO"[2],")")), type="o")
+
+```
+ 
+
 What you report in the deliverable should not be your own process of discovery, but rather a guided discussion that you have constructed so that your audience can come to an understanding as succinctly and successfully as possible. This means that figures should be thoughtfully constructed and what you learn from them should be discussed in text; to the extent that there is _any_ raw output from your analysis, you should intend for people to read and interpret it, and you should write your own interpretation as well. 
 
 ## (3 points) Task 2a: Linear time trend model
@@ -69,6 +97,19 @@ Fit a linear time trend model to the `co2` series, and examine the characteristi
 ## (3 points) Task 3a: ARIMA times series model 
 
 Following all appropriate steps, choose an ARIMA model to fit to the series. Discuss the characteristics of your model and how you selected between alternative ARIMA specifications. Use your model (or models) to generate forecasts to the year 2022. 
+
+```{r}
+if(!"fable"%in%rownames(installed.packages())) {install.packages("fable")}
+library(fable)
+
+model.bic <-df %>%
+  model(ARIMA(value ~ 0:1 + pdq(0:8,0:12,0:8) + PDQ(0,0,0), ic="bic", stepwise=F, greedy=F))
+
+model.bic %>%
+  report()
+
+```
+
 
 ## (3 points) Task 4a: Forecast atmospheric CO2 growth 
 
