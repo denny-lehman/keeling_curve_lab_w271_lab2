@@ -66,17 +66,19 @@ Since the long term trend of the $CO_2$ data looks linear and the variation arou
 
 \begin{equation}
 \label{eq:one}
-\text{CO}_{2} = \beta_0 + \beta_1t + \epsilon_{t}
+\text{CO}_{2} = \beta_0 + \beta_1t + \epsilon_{t},
 \end{equation} 
 
-, which gives the parameters as:
+which gives the parameters as:
 
 \begin{equation}
 \label{eq:two}
 \text{CO}_{2} = 311.5 + 0.11t + \epsilon_{t}
 \end{equation}
 
-This linear trend model implies that the $CO_2$ concentration increased 0.11/month on average during 1959 to 1997. However, the residuals plots in Fig.5 suggest this simple linear trend model is not adequate in the following two aspects. First, the mean of the residual forms a "U" shape along time, suggesting a quadratic or higher order polynomial time trend model may be more appropriate. For instance, the residual from a quadratic time trend model shows a more constant mean over time, as shown in Fig.6.
+This linear trend model implies that the $CO_2$ concentration increased 0.11/month on average during 1959 to 1997. However, the residuals plots in Fig.5 suggest this simple linear trend model is not adequate in the following two aspects. 
+
+First, the mean of the residual forms a "U" shape along time, suggesting a quadratic or higher order polynomial time trend model may be more appropriate. For instance, the residual from a quadratic time trend model shows a more constant mean over time, as shown in Fig.6.
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE}
 
@@ -89,12 +91,26 @@ fit %>% select(quadratic_trend) %>% gg_tsresiduals() + ggtitle("Fig.6 Residual p
 
 ```
 
- and 2) the ACF plots indicates strong seasonal patterns exists in the residuals, suggesting seasonal dummy variables should be included in the model.
+In addition, the ACF plot in Fig.5 indicates strong seasonal patterns exists in the residuals, suggesting we should consider seasonal factors in the model, and one solution is to include 11 dummy variables in the model to indicate the 12 months.
 
-Based on the observation above, 
+Based on the two points above, we compare the following 3 candidate models:
+\begin{equation}
+\label{eq:three}
+\text{Linear time trend: }CO_{2} = \alpha + \beta_0t +\gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
+\end{equation} 
+\begin{equation}
+\label{eq:four}
+\text{Quadratic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 +\gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
+\end{equation} 
+\begin{equation}
+\label{eq:five}
+\text{Cubic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 + \beta_2t^3 + \gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
+\end{equation} 
+
+We use the data before 1991 as the training set and the rest as the validation set (similar to a 80-20 split). The final choice of the model depends on the combination of 3 guidelines: 1) whether the coefficients of the model make sense; 2) the root mean square error (RMSE) on the validation set; 3) the AICc on the training set. The details of model fitting results and validation performance are included in the Appendix. Although both RMSE and AICc favor the cubic model, its negative cubic term indicates that after a certain period the $CO_2$ concentration will start to decrease automatically, which makes little sense. For the rest two, although the quadratic model has better AICc on the training set, it has a higher RMSE on the validation set, which may indicate an overfiting. Therefore, the linear time trend model becomes our final choice.
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE}
-co2_copy <- co2 %>% append_row(600) %>%
+co2_copy <- co2 %>% append_row(276) %>%
   mutate(
     num_index = time(index),
     num_index_qudratic = num_index ^ 2,
@@ -106,24 +122,50 @@ for (i in 1:11) {
     co2_copy %>% mutate("month_{i}" := ifelse(month(index) == i, 1, 0))
 }
 co2_training = co2_copy %>% filter(year(index) < 1991)
-co2_valid = co2_copy %>% filter(year(index) < 1998,year(index) >= 1991)
+co2_valid = co2_copy %>% filter(year(index) < 1998, year(index) >= 1991)
 co2_forecast = co2_copy %>% filter(year(index) >= 1998)
 
-dummy_name=paste0("month_",1:11,collapse = "+")
+dummy_name = paste0("month_", 1:11, collapse = "+")
 fit <- co2_training |>
   model(
-    model_linear = TSLM(as.formula(paste0("value ~ num_index   +",dummy_name))),
-    model_quadratic = TSLM(as.formula(paste0("value ~ num_index  + num_index_qudratic +",dummy_name))),
-    model_cubic = TSLM(as.formula(paste0("value ~ num_index + num_index_qudratic + num_index_cubic +",dummy_name)))
+    model_linear = TSLM(as.formula(paste0(
+      "value ~ num_index   +", dummy_name
+    ))),
+    model_quadratic = TSLM(as.formula(
+      paste0("value ~ num_index  + num_index_qudratic +", dummy_name)
+    )),
+    model_cubic = TSLM(as.formula(
+      paste0(
+        "value ~ num_index + num_index_qudratic + num_index_cubic +",
+        dummy_name
+      )
+    ))
   )
-report(fit)
-vd <- forecast(fit,new_data = co2_valid)
-co2_training %>% filter(index>=yearmonth("1985M01")) %>% autoplot(value,PI = FALSE)+autolayer(vd)+autolayer(co2_valid)
-fabletools::accuracy(vd,co2_valid)
+
+vd <- forecast(fit, new_data = co2_valid)
+# co2_training %>% filter(index >= yearmonth("1985M01")) %>% autoplot(value, PI = FALSE) +
+#   autolayer(vd) + autolayer(co2_valid)
+
 # although the result above prefer the cubic model, I would suggest a linear or quadratic one.
-final_model_poly <- co2_copy %>% filter(year(index)<1998) %>%
-  model(TSLM(as.formula(paste0("value ~ num_index + ",dummy_name))))
+final_model_poly <- co2_copy %>% filter(year(index) < 1998) %>%
+  model(TSLM(as.formula(paste0(
+    "value ~ num_index + ", dummy_name
+  ))))
 fc_linear <- final_model_poly %>% forecast(co2_forecast)
-co2_copy %>% filter(year(index)<1998) %>% autoplot(value)+autolayer(fc_linear)
+co2_copy %>% filter(year(index) < 1998) %>% autoplot(value) + autolayer(fc_linear)
+```
+
+
+# The rest should go to Appendix
+
+```{r}
+print("AIC etc on training set")
+glance(fit) |> arrange(AICc) |> select(.model,AIC,AICc,BIC)
+
+print("RMSE on validation set")
+
+fabletools::accuracy(vd,co2_valid)|> select(.model,RMSE)
+
+report(fit%>% select(model_cubic))
 ```
 
