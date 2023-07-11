@@ -15,6 +15,19 @@ In 1958 Keeling began continuous monitoring of atmospheric carbon dioxide concen
 library(tidyverse)
 library(tsibble)
 
+## to use gg_season
+library(feasts)
+
+# ARIMA and STL
+if(!"fable"%in%rownames(installed.packages())) {install.packages("fable")}
+library(fable)
+
+## To assemble multiple plots
+library(gridExtra)
+
+# for arima search
+install.packages("urca")
+
 library(latex2exp)
 
 theme_set(theme_minimal())
@@ -49,7 +62,7 @@ Because this is the scenario that you are responding to:
 
 For the first part of this task, suspend reality for a short period of time and conduct your analysis from the point of view of a data scientist doing their work in the early months of 1998. Do this by using data that is included in _every_ R implementation, the `co2` dataset. This dataset is lazily loaded with every R instance, and is stored in an object called `co2`. 
 
-## (3 points) Task 0a: Introduction 
+## (3 points) Task 0a: Introduction *(DL)*
 
 Introduce the question to your audience. Suppose that they _could_ be interested in the question, but they don't have a deep background in the area. What is the question that you are addressing, why is it worth addressing, and what are you going to find at the completion of your analysis. Here are a few resource that you might use to start this motivation. 
 
@@ -61,29 +74,126 @@ Introduce the question to your audience. Suppose that they _could_ be interested
 Conduct a comprehensive Exploratory Data Analysis on the `co2` series. This should include (without being limited to) a [description of how, where and why ](https://gml.noaa.gov/ccgg/about/co2_measurements.html) the data is generated, a thorough investigation of the trend, seasonal and irregular elements. Trends both in levels and growth rates should be discussed (consider expressing longer-run growth rates as annualized averages).
 
 ```{r}
-head(co2)
-glimpse(co2)
+
 df <- tsibble::as_tsibble(co2) %>%
   filter(index < lubridate::ymd('1998-01-01'))
+
+# smoothing
+df %>%
+  mutate(
+    smooth_12m = slider::slide_dbl(value, mean, # 3 day moving average
+                .before = 6, .after = 5, .complete = TRUE),
+  ) %>%
+  ggplot() + 
+  geom_line(aes(index, value), color="cornflowerblue") +
+  geom_line(aes(index, smooth_12m), color='black') +
+  labs(y = 'CO2 ppm', x = 'date', title='Time series of CO2 with annual smoothing')
 
 # non ggplot version
 par(mfrow=c(2,2))
 plot(df, type="l", xlab="time", ylab="CO2 ppm", col="cornflowerblue", main="Time Series")
-acf(df, col="darkorange2", main="ACF")
+acf(df, col="darkorange2", main="ACF") # add lag max
 pacf(df, col="gold3", main="PACF")
 hist(df$value, xlab = "CO2 ppm", main="Histogram of CO2 ppm")
+
+
 ```
+The PACF graph gives insight into the AR order. Since there are 2 significant lag terms, we hypothesize that the AR part of the model will have an order or 2.
+The ACF graph gives insight into the MA order. Since there are many significant terms with a long slow decay, there might be no significant terms in the MA model.
+ACF plot's slow decay is evidence of trend overtime
+No outliers
+Strong seasonal component
+Without trend component, variance appears constant, no need to transform data
 
 How data was generated
  - where (hawaii)
  - why (study photosynthesis)
  - how (dont know)
  
+What we are trying to accomplish:
+ - Capture the key pattern observed in the data
+ - predict future values of atmospheric CO2
+ - determine the trend and seasonal component
+ - what is the initial hypothesis we start with? We believe the system is changing linearly
+ 
+ETSDA
+ - analyze trend
+ - fluctuation around the trend
+ - any sharp changes in behavior?
+ - any outliers?
+ - is the time series stationary?
+ 
+Pick a model
+  - what model? is it stationary
+  - is there validity to the models assumptions?
+  - chose the best model, based on some business metric
+  
+  
+EDA notes
+ there is trend and fluctuations around the trend (week 6, pattern 1)
+ is there a trend
+ is there seasonality around the trend
+ do I need smoothing or the r decompose
+  
 ```{r use diff to remove trend and seasonality}
 # https://atsa-es.github.io/atsa-labs/sec-tslab-differencing-to-remove-a-trend-or-seasonal-effects.html
 plot(diff(df$value, lag = 1), ylab = expression(paste(nabla^1, "CO"[1])), type='l')
 plot(diff(df$value, lag = 2), ylab = expression(paste(nabla^2, "CO"[2])), type="o")
+# representative of the SRAIMA model, D=12, d=2
 plot(diff(diff(df$value, lag = 2),lag = 12), ylab = expression(paste(nabla,"(",nabla^2, "CO"[2],")")), type="o")
+```
+
+For decomposition:
+ - check for stationarity of residuals after differencing
+ - do I need to check additive and multiplicative? Yes, because we check the log transform
+ - log transform has the same pattern of additive, is this because the trend is inbetween linear and exponential?
+
+```{r}
+dcomp_add <- df %>% 
+  model(stl = STL(value))
+components(dcomp_add)
+components(dcomp_add) %>% 
+  autoplot(color="gray")
+
+components(dcomp_add) %>%
+  as_tsibble() %>%
+  autoplot(value, color="gray") + 
+  geom_line(aes(y=trend), color = "#D55E00") + 
+  labs(y= "CO2 ppm", x='date', title="CO2 with trend" )
+
+dcomp_mult <- df %>%
+  mutate(log_value = log(value)) %>%
+  model(stl = STL(log_value))
+
+components(dcomp_mult) %>%
+  as_tsibble() %>%
+  autoplot(exp(log_value), color="gray") + 
+  geom_line(aes(y=exp(trend)), color = "#D55E00") + 
+  labs(y= "CO2", x='date', title="Log(CO2) untransformed with trend" )
+```
+
+ 
+```{r seasonal box plots}
+df %>%
+  index_by(month = lubridate::month(index)) %>%
+  ggplot(aes(y=value, x = month)) + geom_boxplot(aes(group=month)) + scale_x_continuous(breaks=seq(0,12,1), labels=c("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")) + ggtitle("CO2 ppm values by Month") +
+  ylab("CO2 ppm") +
+  xlab("month")
+
+# seasonplot(best, col = rainbow(10), year.labels = TRUE)
+# ?stl
+```
+
+For time series decomposition, we will
+- estimate the trend using smoothing procedures
+- de-trend the time series
+- estimate the seasonal factors from the detrended series
+- normalize the seasonal effects
+- calculate the irregular component
+- analyze the residuals
+
+```{r stl decomp}
+plot(stl(df, s.window=12))
 
 ```
  
@@ -94,26 +204,158 @@ What you report in the deliverable should not be your own process of discovery, 
 
 Fit a linear time trend model to the `co2` series, and examine the characteristics of the residuals. Compare this to a quadratic time trend model. Discuss whether a logarithmic transformation of the data would be appropriate. Fit a polynomial time trend model that incorporates seasonal dummy variables, and use this model to generate forecasts to the year 2020. 
 
+# DELETE ME LATER - Check live session 7 for more information on how to complete this part
+
+In this section, we estimate the linear time trend using the following linear regression models:
+
+  - A Linear trend: $Y_t = \beta_0 + beta_1 \cdot t + W_t$
+  
+  - A quadratic trend: $Y_t = \beta_0 + beta_1 \cdot t+ \beta_2 \cdot t^2 + W_t$
+  
+  - A logarithmic trend: $log(Y_t) = \beta_0 + \beta_1 \cdot t + W_t$
+  
+   - A seasonal movement: $Y_t = \beta_0 + \sum_{i=1}^{s-1} \beta_i \cdot S_{it} + W_t$
+  
+  - A linear trend with seasonal movement: $Y_t = \beta_0 + \beta_1 \cdot t + \sum_{i=2}^{s-1} \beta_i \cdot S_{it} + W_t$
+
+```{r}
+
+fit_linear <- df %>%
+  model(trend_model = TSLM(value ~ trend()))
+ 
+
+fit_quadratic <- df %>%
+   model(trend_model = TSLM(value ~ trend()+I(trend()^2))) 
+
+fit_log <- df %>%
+  mutate(log_value = log(value)) %>%
+   model(trend_model = TSLM(log_value ~ trend())) 
+
+ 
+fit_linear_season <- df %>%
+   model(trend_model = TSLM(value ~ trend()+ season())) 
+
+fit_quadratic_season <- df %>%
+  model(trend_model = TSLM(value ~ trend()+I(trend()^2)+ season())) 
+
+
+p1 <- augment(fit_linear)%>%
+  ggplot(aes(x = index)) +
+  geom_line(aes(y = value, colour = "Data")) +
+  geom_line(aes(y = .fitted, colour = "Fitted")) +
+  labs(y = "Time",
+       title = "The linear model with intercept and slope") 
+
+p2<-augment(fit_quadratic)%>%
+  ggplot(aes(x = index)) +
+  geom_line(aes(y = value, colour = "Data")) +
+  geom_line(aes(y = .fitted, colour = "Fitted")) +
+  labs(y = "Time",
+       title = "Quadratic")
+
+p3<-augment(fit_log)%>%
+  ggplot(aes(x = index)) +
+  geom_line(aes(y = log_value, colour = "Data")) +
+  geom_line(aes(y = .fitted, colour = "Fitted")) +
+  labs(y = "Time",
+       title = "Log")
+
+p4<-augment(fit_linear_season)%>%
+  ggplot(aes(x = index)) +
+  geom_line(aes(y = value, colour = "Data")) +
+  geom_line(aes(y = .fitted, colour = "Fitted")) +
+  labs(y = "Time",
+       title = "Linear Trend + Season") 
+
+p5<-augment(fit_quadratic_season)%>%
+  ggplot(aes(x = index)) +
+  geom_line(aes(y = value, colour = "Data")) +
+  geom_line(aes(y = .fitted, colour = "Fitted")) +
+  labs(y = "Time",
+       title = "Quadratic trend + season") 
+
+grid.arrange(p1,p2,p3,p4,p5, nrow = 3, ncol = 2)
+
+```
+Note: change the log transform back to the untransformed space to plot
+
 ## (3 points) Task 3a: ARIMA times series model 
 
 Following all appropriate steps, choose an ARIMA model to fit to the series. Discuss the characteristics of your model and how you selected between alternative ARIMA specifications. Use your model (or models) to generate forecasts to the year 2022. 
 
-```{r}
-if(!"fable"%in%rownames(installed.packages())) {install.packages("fable")}
-library(fable)
-
+```{r search for best ARIMA model}
 model.bic <-df %>%
-  model(ARIMA(value ~ 0:1 + pdq(0:8,0:12,0:8) + PDQ(0,0,0), ic="bic", stepwise=F, greedy=F))
+  # model(ARIMA(value ~ 0:1 + pdq(0:10,0:2,0:10) + PDQ(0:4,0:4,0:4), ic="bic", stepwise=F, greedy=F))
+  model(ARIMA(value ~ 0:1 + pdq(0:8,0:2,0:8) + PDQ(0:12,0:4,0:12), ic="bic", stepwise=F, greedy=F))
 
 model.bic %>%
   report()
 
 ```
 
+What is the reason for picking a evaluation metric (information criteria):
+ - is this subjective, and we just need to prove it?
+ 
+Do the model selection process (box jenkins)
+ - plot the residuals
+ - do the residuals look stationary?
+ - check autocorrelation
+ - check pacf
+ - do the residuals pass the box jenkins test for stationarity
+ 
+```{r}
+fit_quadratic_season %>% gg_tsresiduals()
+model.bic %>%
+  augment() %>%
+  ACF(.resid) %>%
+  autoplot()
+
+model.bic %>%
+  augment() %>%
+  hist(.resid) %>%
+  autoplot()
+
+resid.ts<-model.bic %>%
+  augment() %>%
+  select(.resid) %>%
+  as.ts()
+
+# box jenkins test for stationarity
+# Ho = data is independently distributed
+Box.test(resid.ts, lag = 1, type = "Ljung-Box")
+Box.test(resid.ts, lag = 6, type = "Ljung-Box")
+Box.test(resid.ts, lag = 12, type = "Ljung-Box")
+```
+ 
 
 ## (3 points) Task 4a: Forecast atmospheric CO2 growth 
 
 Generate predictions for when atmospheric CO2 is expected to be at [420 ppm](https://research.noaa.gov/article/ArtMID/587/ArticleID/2764/Coronavirus-response-barely-slows-rising-carbon-dioxide) and 500 ppm levels for the first and final times (consider prediction intervals as well as point estimates in your answer). Generate a prediction for atmospheric CO2 levels in the year 2100. How confident are you that these will be accurate predictions?
+
+```{r}
+co2
+df_test <- tsibble::as_tsibble(co2) %>%
+  filter(index >= lubridate::ymd('1998-01-01'))
+co2
+model.bic %>%
+  forecast(df_test)
+
+bitcoin_test <-bitcoin_daily %>%
+filter( Date >= ymd(20220101))
+
+bit_forcast <- bit_fit %>%
+forecast(bitcoin_test)
+
+bitcoin_daily <- bitcoin_daily %>%
+mutate(log_Value = log(Value))
+
+bit_forcast %>%
+filter(.model %in% c("random_walk", "arima_fit")) %>%
+autoplot(bitcoin_daily)+
+labs(y = "log($US)",title = "Log of the bitcoin prices from Jan 2017") +
+guides(colour = guide_legend(title = "Forecast"))
+```
+
 
 # Report from the Point of View of the Present 
 
