@@ -13,7 +13,8 @@ library(patchwork)
 library(fable)
 library(forecast)
 library(stargazer)
-
+library(dplyr)
+library(knitr)
 theme_set(theme_minimal())
 knitr::opts_chunk$set(dpi=1000)
 ```
@@ -34,7 +35,7 @@ Another feature of the data is its robust seasonal pattern, with peak in May and
 Fig.4 is the histogram of the remaining or irregular components after removing the trend and the seasonal components from the data with STL^[Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33.]. It looks like a normal distribution without obvious outliers.  
 
 
-```{r, echo = FALSE, message = FALSE, warning=FALSE,fig.height=3}
+```{r, echo = FALSE, message = FALSE, warning=FALSE,fig.height=5}
 p1 <- autoplot(co2) +
   ggtitle("Fig.1 Atmospheric CO2 concentration\n monthly average, parts per million (ppm) ") +
   xlab(NULL) + ylab(NULL)+ 
@@ -76,96 +77,79 @@ which gives the parameters as:
 \text{CO}_{2} = 311.5 + 0.11t + \epsilon_{t}
 \end{equation}
 
-This linear trend model implies that the $CO_2$ concentration increased 0.11/month on average during 1959 to 1997. However, the residuals plots in Fig.5 suggest this simple linear trend model is not adequate in the following two aspects. 
+This linear trend model implies that the $CO_2$ concentration increased 0.11/month on average during 1959 to 1997. However, the residuals plots in Fig.5 to Fig.7 suggest this simple linear trend model is not adequate in the following two aspects. 
 
-First, the mean of the residual forms a "U" shape along time, suggesting a quadratic or higher order polynomial time trend model may be more appropriate. For instance, the residual from a quadratic time trend model shows a more constant mean over time, as shown in Fig.6.
+First, the mean of the residual forms a "U" shape along time, suggesting a quadratic or higher order polynomial time trend model may be more appropriate. For instance, the residual from a quadratic time trend model shows a more constant mean over time, as shown in Fig.8.
 
-```{r, echo = FALSE, message = FALSE, warning=FALSE}
+```{r, echo = FALSE, message = FALSE, warning=FALSE,fig.height=3}
+fit <- co2 %>% model(
+  linear_trend = TSLM(value ~ trend()),
+  quadratic_trend = TSLM(value ~ trend() + I(trend() ^ 2))
+)
 
-fit <-co2 %>% model(
-  linear_trend =TSLM(value~trend()),
-  quadratic_trend=TSLM(value~trend()+I(trend()^2)))
-
-fit %>% select(linear_trend) %>% gg_tsresiduals() + ggtitle("Fig.5 Residual plot of the linear trend model")
-fit %>% select(quadratic_trend) %>% gg_tsresiduals() + ggtitle("Fig.6 Residual plot of the quadratic trend model")
-
+resid_linear <-
+  fit %>% dplyr::select(linear_trend) %>% residuals()
+resid_quadratic <-
+  fit %>% dplyr::select(quadratic_trend) %>% residuals()
+p5 <-
+  autoplot(resid_linear) + ggtitle("Fig.5 Residual of the linear trend model") +
+  theme(text = element_text(size = 8))
+p6 <-
+  ggAcf(resid_linear) + ggtitle("Fig.6 ACF of the linear trend model residuals") +
+  theme(text = element_text(size = 8))
+p7 <-
+  gghistogram(resid_linear %>% pull(.resid)) + ggtitle("Fig.7 Histogram of the linear\n trend model residuals") +
+  theme(text = element_text(size = 8))
+p8 <-
+  autoplot(resid_quadratic) + ggtitle("Fig.8 Residual of the quadratic\n time trend model") +
+  theme(text = element_text(size = 8))
+(p5 | p6) / (p7 | p8)
 ```
 
-In addition, the ACF plot in Fig.5 indicates strong seasonal patterns exists in the residuals, suggesting we should consider seasonal factors in the model, and one solution is to include 11 dummy variables in the model to indicate the 12 months.
+In addition, Fig.6, the ACF plot, indicates strong seasonal patterns exists in the residuals, suggesting we should consider seasonal factors in the model, and one solution is to include 11 dummy variables in the model to indicate the 12 months.
 
-Based on the two points above, we compare the following 3 candidate models:
+Based on the two points above, we compare the 2 candidates: a quadratic time trend model and a cubic one, as below.
+
 \begin{equation}
 \label{eq:three}
-\text{Linear time trend: }CO_{2} = \alpha + \beta_0t +\gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
-\end{equation} 
-\begin{equation}
-\label{eq:four}
 \text{Quadratic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 +\gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
 \end{equation} 
 \begin{equation}
-\label{eq:five}
+\label{eq:four}
 \text{Cubic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 + \beta_2t^3 + \gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
 \end{equation} 
 
-We use the data before 1991 as the training set and the rest as the validation set (similar to a 80-20 split). The final choice of the model depends on the combination of 3 guidelines: 1) whether the coefficients of the model make sense; 2) the root mean square error (RMSE) on the validation set; 3) the AICc on the training set. The details of model fitting results and validation performance are included in the Appendix. Although both RMSE and AICc favor the cubic model, its negative cubic term indicates that after a certain period the $CO_2$ concentration will start to decrease automatically, which makes little sense. For the rest two, although the quadratic model has better AICc on the training set, it has a higher RMSE on the validation set, which may indicate an overfiting. Therefore, the linear time trend model becomes our final choice.
+We use the data before 1991 as the training set and the rest as the validation set (similar to a 80-20 split). Our final choice of the model depends on the combination of 2 guidelines: 1) the information criterion (AICc, BIC) from the model fitting process and 2) the root mean square error (RMSE) of predictions on the validation set, which are listed in Table.1. Both information criterion (AICc, BIC) and RMSE favor the cubic model. Therefore, the cubic time trend model becomes our final choice. Its details are in the Appendix. We plot the forecast of this model till 2020 in Fig.7. One thing to note is that because the coefficient of the cubic term is negative, the predicted values will eventually begin to decrease when predicting the far future. In fact we can see from Fig.7 that the predicted values have almost topped. If it doesn't make sense, we should confine our predicting interval to the near term.
 
-```{r, echo = FALSE, message = FALSE, warning=FALSE}
-co2_copy <- co2 %>% append_row(276) %>%
-  mutate(
-    num_index = time(index),
-    num_index_qudratic = num_index ^ 2,
-    num_index_cubic = num_index ^ 3,
-  )
-for (i in 1:11) {
-  name =
-    co2_copy <-
-    co2_copy %>% mutate("month_{i}" := ifelse(month(index) == i, 1, 0))
-}
-co2_training = co2_copy %>% filter(year(index) < 1991)
-co2_valid = co2_copy %>% filter(year(index) < 1998, year(index) >= 1991)
-co2_forecast = co2_copy %>% filter(year(index) >= 1998)
 
-dummy_name = paste0("month_", 1:11, collapse = "+")
-fit <- co2_training |>
+```{r, echo = FALSE, message = FALSE, warning=FALSE,fig.height=2}
+co2_training = co2 %>% filter(year(index) < 1991)
+co2_valid = co2 %>% filter(year(index) < 1998, year(index) >= 1991)
+fit_poly <- co2_training |>
   model(
-    model_linear = TSLM(as.formula(paste0(
-      "value ~ num_index   +", dummy_name
-    ))),
-    model_quadratic = TSLM(as.formula(
-      paste0("value ~ num_index  + num_index_qudratic +", dummy_name)
-    )),
-    model_cubic = TSLM(as.formula(
-      paste0(
-        "value ~ num_index + num_index_qudratic + num_index_cubic +",
-        dummy_name
-      )
-    ))
+    quadratic = TSLM(value ~ trend() + I(trend() ^ 2) + season()),
+    cubic = TSLM(value ~ trend() + I(trend() ^ 2) + I(trend() ^ 3) +
+                   season())
   )
 
-vd <- forecast(fit, new_data = co2_valid)
-# co2_training %>% filter(index >= yearmonth("1985M01")) %>% autoplot(value, PI = FALSE) +
-#   autolayer(vd) + autolayer(co2_valid)
-
-# although the result above prefer the cubic model, I would suggest a linear or quadratic one.
-final_model_poly <- co2_copy %>% filter(year(index) < 1998) %>%
-  model(TSLM(as.formula(paste0(
-    "value ~ num_index + ", dummy_name
-  ))))
-fc_linear <- final_model_poly %>% forecast(co2_forecast)
-co2_copy %>% filter(year(index) < 1998) %>% autoplot(value) + autolayer(fc_linear)
+vd <- forecast(fit_poly, h = 72)
+fc_poly <- co2 %>%
+  model(TSLM(value ~ trend() + I(trend() ^ 2) + I(trend() ^ 3) +
+               season())) %>%
+  forecast(h = 276)
+model_ic = glance(fit_poly) %>%  dplyr::select(.model, AIC, AICc, BIC) %>% arrange(AICc)
+vc_acc = fabletools::accuracy(vd, co2_valid) |> dplyr::select(.model, RMSE)
+compare = cbind(model_ic, vc_acc['RMSE'])
+kable(compare, caption = "Information Criterion of model fitting and RMSE of validation")
+co2 %>%  autoplot(value) + autolayer(fc_poly) + ggtitle("Fig.7 Forecasts of CO2 level Up To 2020 Using Polynomial Trend Time Model") +
+  theme(text = element_text(size = 8)) 
 ```
 
 
 # The rest should go to Appendix
 
 ```{r}
-print("AIC etc on training set")
-glance(fit) |> arrange(AICc) |> select(.model,AIC,AICc,BIC)
-
-print("RMSE on validation set")
-
-fabletools::accuracy(vd,co2_valid)|> select(.model,RMSE)
-
-report(fit%>% select(model_cubic))
+fit_poly %>% dplyr::select(cubic) %>% report()
 ```
+
 
