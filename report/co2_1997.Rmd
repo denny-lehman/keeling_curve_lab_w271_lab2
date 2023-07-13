@@ -112,11 +112,11 @@ Based on the two points above, we compare the 2 candidates: a quadratic time tre
 
 \begin{equation}
 \label{eq:three}
-\text{Quadratic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 +\gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
+\text{Quadratic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 +\sum_{i=1}^{11} \gamma_i Month_{it} + \epsilon_{t}
 \end{equation} 
 \begin{equation}
 \label{eq:four}
-\text{Cubic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 + \beta_2t^3 + \gamma_1D_{Jan}+\gamma_2D_{Feb}+...+\gamma_{11}D_{Nov} + \epsilon_{t}
+\text{Cubic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 + \beta_2t^3 + \sum_{i=1}^{11} \gamma_i Month_{it} + \epsilon_{t}
 \end{equation} 
 
 We use the data before 1991 as the training set and the rest as the validation set (similar to a 80-20 split). Our final choice of the model depends on the combination of 2 guidelines: 1) the information criterion (AICc, BIC) from the model fitting process and 2) the root mean square error (RMSE) of predictions on the validation set, which are listed in Table.1. Both information criterion (AICc, BIC) and RMSE favor the cubic model. Therefore, the cubic time trend model becomes our final choice. Its details are in the Appendix. We plot the forecast of this model till 2020 in Fig.7. One thing to note is that because the coefficient of the cubic term is negative, the predicted values will eventually begin to decrease when predicting the far future. In fact we can see from Fig.7 that the predicted values have almost topped. If it doesn't make sense, we should confine our predicting interval to the near term.
