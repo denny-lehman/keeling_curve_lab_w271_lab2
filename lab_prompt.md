@@ -18,10 +18,6 @@ seasonal cycle. He was able to attribute this trend increase to growth
 in global rates of fossil fuel combustion. This trend has continued to
 the present, and is known as the “Keeling Curve.”
 
-    ## Warning: package 'tsibble' was built under R version 4.1.3
-
-    ## Warning: package 'latex2exp' was built under R version 4.1.3
-
 ![](lab_prompt_files/figure-gfm/plot%20the%20keeling%20curve-1.png)<!-- -->
 
 # Your Assignment
@@ -88,6 +84,61 @@ and irregular elements. Trends both in levels and growth rates should be
 discussed (consider expressing longer-run growth rates as annualized
 averages).
 
+``` r
+head(co2)
+```
+
+    ## [1] 315.42 316.31 316.50 317.56 318.13 318.00
+
+``` r
+glimpse(co2)
+```
+
+    ##  Time-Series [1:468] from 1959 to 1998: 315 316 316 318 318 ...
+
+``` r
+df <- tsibble::as_tsibble(co2) %>%
+  filter(index < lubridate::ymd('1998-01-01'))
+```
+
+    ## Warning: There was 1 warning in `filter()`.
+    ## ℹ In argument: `index < lubridate::ymd("1998-01-01")`.
+    ## Caused by warning:
+    ## ! Incompatible methods ("<.vctrs_vctr", "<.Date") for "<"
+
+``` r
+# non ggplot version
+par(mfrow=c(2,2))
+plot(df, type="l", xlab="time", ylab="CO2 ppm", col="cornflowerblue", main="Time Series")
+acf(df, col="darkorange2", main="ACF")
+pacf(df, col="gold3", main="PACF")
+hist(df$value, xlab = "CO2 ppm", main="Histogram of CO2 ppm")
+```
+
+![](lab_prompt_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+How data was generated - where (hawaii) - why (study photosynthesis) -
+how (dont know)
+
+``` r
+# https://atsa-es.github.io/atsa-labs/sec-tslab-differencing-to-remove-a-trend-or-seasonal-effects.html
+plot(diff(df$value, lag = 1), ylab = expression(paste(nabla^1, "CO"[1])), type='l')
+```
+
+![](lab_prompt_files/figure-gfm/use%20diff%20to%20remove%20trend%20and%20seasonality-1.png)<!-- -->
+
+``` r
+plot(diff(df$value, lag = 2), ylab = expression(paste(nabla^2, "CO"[2])), type="o")
+```
+
+![](lab_prompt_files/figure-gfm/use%20diff%20to%20remove%20trend%20and%20seasonality-2.png)<!-- -->
+
+``` r
+plot(diff(diff(df$value, lag = 2),lag = 12), ylab = expression(paste(nabla,"(",nabla^2, "CO"[2],")")), type="o")
+```
+
+![](lab_prompt_files/figure-gfm/use%20diff%20to%20remove%20trend%20and%20seasonality-3.png)<!-- -->
+
 What you report in the deliverable should not be your own process of
 discovery, but rather a guided discussion that you have constructed so
 that your audience can come to an understanding as succinctly and
@@ -112,6 +163,31 @@ Following all appropriate steps, choose an ARIMA model to fit to the
 series. Discuss the characteristics of your model and how you selected
 between alternative ARIMA specifications. Use your model (or models) to
 generate forecasts to the year 2022.
+
+``` r
+if(!"fable"%in%rownames(installed.packages())) {install.packages("fable")}
+library(fable)
+```
+
+    ## Loading required package: fabletools
+
+``` r
+model.bic <-df %>%
+  model(ARIMA(value ~ 0:1 + pdq(0:8,0:12,0:8) + PDQ(0:12,0:12,0:12), ic="bic", stepwise=F, greedy=F))
+```
+
+    ## Warning: 1 error encountered for ARIMA(value ~ 0:1 + pdq(0:8, 0:12, 0:8) + PDQ(0:12, 0:12, 0:12), 
+    ##     ic = "bic", stepwise = F, greedy = F)
+    ## [1] The `feasts` package must be installed to use this functionality. It can be installed with install.packages("feasts")
+
+``` r
+model.bic %>%
+  report()
+```
+
+    ## Series: value 
+    ## Model: NULL model 
+    ## NULL model
 
 ## (3 points) Task 4a: Forecast atmospheric CO2 growth
 
