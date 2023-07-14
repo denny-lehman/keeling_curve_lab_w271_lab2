@@ -28,14 +28,28 @@ co2 <- as_tsibble(co2) %>% filter(year(index)<1998)
 
 The data measures the monthly average atmospheric CO2 concentration from 1959 to 1997, expressed in parts per million (ppm). It was initially collected by a infrared gas analyzer installed at Mauna Loa in Hawaii, which was one of the four analyzers installed by Keeling to evaluate whether there was a persistent increase in CO2 concentration. 
 
-Fig.1 shows a clear long-term upward trend, which is confirmed by Fig.2 where the growth rate for each year is above zero. Fig.2 also suggests the average growth rate after 1970 is higher than that before 1970, although there's no evidence of accelerating growth.
+Fig.1 shows a clear long-term upward trend, which is confirmed by Fig.2 where the growth rate for each year is above zero. Fig.2 also suggests the average growth rate after 1970 is higher than that before 1970, although there's no evidence of accelerating growth. The ACF plots in Fig.3 and Fig.4 suggest the original data is non-stationary but its 
+first difference is stationary. More formally, KPSS tests below confirm the observations above.
+```{r, echo = FALSE, message = FALSE, warning=FALSE}
+test_original=co2 |>
+  features(value, unitroot_kpss)
 
-Another feature of the data is its robust seasonal pattern, with peak in May and bottom in October almost every year (see Fig.3). Keeling believes it was the result of the activity of land plants.
+test_1d=co2 |>
+  mutate(d_value = difference(value)) |>
+  features(d_value, unitroot_kpss)
+
+test_results=round(as.data.frame(rbind(test_original,test_1d)),4)
+rownames(test_results)=c("original","1st_difference")
+kable(test_results,row.names=TRUE,caption = "KPSS test of orignal and 1st difference")
+```
+
+
+Another feature of the data is its robust seasonal pattern, with peak in May and bottom in October almost every year (see Fig.5). This seasonality can also be seen from Fig.4. Keeling believes it was the result of the activity of land plants.
 
 Fig.4 is the histogram of the remaining or irregular components after removing the trend and the seasonal components from the data with STL^[Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33.]. It looks like a normal distribution without obvious outliers.  
 
 
-```{r, echo = FALSE, message = FALSE, warning=FALSE,fig.height=5}
+```{r, echo = FALSE, message = FALSE, warning=FALSE,fig.height=6}
 p1 <- autoplot(co2) +
   ggtitle("Fig.1 Atmospheric CO2 concentration\n monthly average, parts per million (ppm) ") +
   xlab(NULL) + ylab(NULL)+ 
@@ -47,18 +61,22 @@ p2 <- co2 %>% index_by(year = year(index)) %>%
   xlab(NULL) + ylab(NULL) +
   ggtitle("Fig.2 Annual growth rate of concentration, %")+ 
   theme(text = element_text(size = 8)) 
-p3 <- gg_season(co2) +
-  xlab(NULL) + ylab(NULL) +
-  ggtitle("Fig.3 Seasonal plot of CO2 concentration")+ 
+p3 <- co2 %>% ACF(value) %>% autoplot()+
+  ggtitle("Fig.3 ACF of CO2 concentration")+ 
   theme(text = element_text(size = 8)) 
-p4 <- co2 %>% model(STL(value ~ trend(window = 120) + season(window = "periodic"),
+p4 <- co2 %>% ACF(difference(value)) %>% autoplot()+
+  ggtitle("Fig.4 ACF of differenced CO2 concentration")+ 
+  theme(text = element_text(size = 8)) 
+p5 <- gg_season(co2) +
+  xlab(NULL) + ylab(NULL) +
+  ggtitle("Fig.5 Seasonal plot of CO2 concentration")+ 
+  theme(text = element_text(size = 8)) 
+p6 <- co2 %>% model(STL(value ~ trend(window = 120) + season(window = "periodic"),
                         robust = TRUE)) %>%
   components() %>% pull(remainder) %>% gghistogram() +
-  ggtitle("Fig.4 Histogram of irregular\n component by STL")+ 
+  ggtitle("Fig.6 Histogram of irregular\n component by STL")+ 
   theme(text = element_text(size = 8)) 
-# p3 <- ggAcf(co2$value)
-# p4 <- ggPacf(co2$value)
-(p1 | p2) / (p3 | p4)
+(p1 | p2) / (p3 | p4)/ (p5 | p6)
 ```
 
 # Linear model
