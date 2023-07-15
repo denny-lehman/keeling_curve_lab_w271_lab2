@@ -329,14 +329,14 @@ Create a data pipeline that starts by reading from the appropriate URL, and ends
 Conduct the same EDA on this data. Describe how the Keeling Curve evolved from 1997 to the present, noting where the series seems to be following similar trends to the series that you "evaluated in 1997" and where the series seems to be following different trends. This EDA can use the same, or very similar tools and views as you provided in your 1997 report. 
 
 ```{r}
-library(zoo)
-co2_present_raw=read.csv("https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv",skip=51)
-co2_present <- co2_present_raw %>% 
-  mutate(time_index=make_date(year,month,day)) %>% 
-  dplyr::select(time_index,average) %>%
-  as_tsibble(index = time_index) %>%
-  mutate(average =replace(average,average<=-999,NA)) %>%
-  mutate(average = na.approx(average))
+# library(zoo)
+# co2_present_raw=read.csv("https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv",skip=51)
+# co2_present <- co2_present_raw %>% 
+#   mutate(time_index=lubridate::make_date(year,month,day)) %>% 
+#   dplyr::select(time_index,average) %>%
+#   as_tsibble(index = time_index) %>%
+#   mutate(average =replace(average,average<=-999,NA)) %>%
+#   mutate(average = na.approx(average))
 
 ```
 
@@ -345,7 +345,7 @@ co2_present <- co2_present_raw %>%
 
 Descriptively compare realized atmospheric CO2 levels to those predicted by your forecast from a linear time model in 1997 (i.e. "Task 2a"). (You do not need to run any formal tests for this task.) 
 ```{r}
-co2 %>% autoplot(value) + autolayer(fc_linear) + autolayer(co2_present)
+# co2 %>% autoplot(value) + autolayer(fc_linear) + autolayer(co2_present)
 ```
 
 
@@ -353,7 +353,7 @@ co2 %>% autoplot(value) + autolayer(fc_linear) + autolayer(co2_present)
 
 Descriptively compare realized atmospheric CO2 levels to those predicted by your forecast from the ARIMA model that you fitted in 1997 (i.e. "Task 3a"). Describe how the Keeling Curve evolved from 1997 to the present. 
 ```{r}
-co2 %>% autoplot(value) + autolayer(fc_arima) + autolayer(co2_present)
+# co2 %>% autoplot(value) + autolayer(fc_arima) + autolayer(co2_present)
 ```
 
 
