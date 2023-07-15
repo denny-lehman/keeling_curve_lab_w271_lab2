@@ -19,6 +19,7 @@ library(latex2exp)
 library(patchwork)
 library(fable)
 library(forecast)
+library(tseries) # for adf.test
 library(stargazer)
 
 theme_set(theme_minimal())
@@ -54,7 +55,7 @@ Because this is the scenario that you are responding to:
 For the first part of this task, suspend reality for a short period of time and conduct your analysis from the point of view of a data scientist doing their work in the early months of 1998. Do this by using data that is included in _every_ R implementation, the `co2` dataset. This dataset is lazily loaded with every R instance, and is stored in an object called `co2`. 
 
 ```{r}
-co2 <- as_tsibble(co2) %>% filter(year(index)<1998)
+co2 <- as_tsibble(co2) %>% filter(lubridate::year(index)<1998)
 
 ```
 
@@ -76,7 +77,7 @@ What you report in the deliverable should not be your own process of discovery, 
 p1 <- autoplot(co2) +geom_smooth(color="lightgrey")+
   ggtitle("Fig.1 Atmospheric CO2 concentration\n monthly average, parts per million (ppm) ") +
   xlab(NULL) + ylab(NULL)
-p2 <- co2 %>% index_by(year = year(index)) %>%
+p2 <- co2 %>% index_by(year = lubridate::year(index)) %>%
   summarise(annual_avg = mean(value)) %>%
   mutate(annual_growth = (annual_avg / lag(annual_avg, 1) - 1) * 100) %>%
   autoplot(.vars = annual_growth) +
@@ -87,7 +88,8 @@ p3 <- gg_season(co2) +
   ggtitle("Fig.3 Seasonal plot of CO2 concentration")
 p4 <- co2 %>% model(STL(value ~ trend(window = 120) + season(window = "periodic"),
                         robust = TRUE)) %>%
-  components() %>% pull(remainder) %>% gghistogram() +
+  components() %>% pull(remainder) %>%
+  gghistogram() +
   ggtitle("Fig.4 Histogram of irregular\n component by STL")
 # p3 <- ggAcf(co2$value)
 # p4 <- ggPacf(co2$value)
@@ -154,11 +156,11 @@ co2_copy <- co2 %>% append_row(600) %>%
 for (i in 1:11) {
   name =
     co2_copy <-
-    co2_copy %>% mutate("month_{i}" := ifelse(month(index) == i, 1, 0))
+    co2_copy %>% mutate("month_{i}" := ifelse(lubridate::month(index) == i, 1, 0))
 }
-co2_training = co2_copy %>% filter(year(index) < 1991)
-co2_valid = co2_copy %>% filter(year(index) < 1998,year(index) >= 1991)
-co2_forecast = co2_copy %>% filter(year(index) >= 1998)
+co2_training = co2_copy %>% filter(lubridate::year(index) < 1991)
+co2_valid = co2_copy %>% filter(lubridate::year(index) < 1998, lubridate::year(index) >= 1991)
+co2_forecast = co2_copy %>% filter(lubridate::year(index) >= 1998)
 
 # stargazer(model_linear,model_quadratic,model_cubic,type="text",
 #           add.lines=list(c("AIC", round(AIC(model_linear),1), round(AIC(model_quadratic),1), round(AIC(model_cubic),1)),
@@ -175,10 +177,10 @@ vd <- forecast(fit,new_data = co2_valid)
 co2_training %>% filter(index>=yearmonth("1985M01")) %>% autoplot(value,PI = FALSE)+autolayer(vd)+autolayer(co2_valid)
 fabletools::accuracy(vd,co2_valid)
 # although the result above prefer the cubic model, I would suggest a linear or quadratic one.
-final_model_poly <- co2_copy %>% filter(year(index)<1998) %>%
+final_model_poly <- co2_copy %>% filter(lubridate::year(index)<1998) %>%
   model(TSLM(as.formula(paste0("value ~ num_index + ",dummy_name))))
 fc_linear <- final_model_poly %>% forecast(co2_forecast)
-co2_copy %>% filter(year(index)<1998) %>% autoplot(value)+autolayer(fc_linear)
+co2_copy %>% filter(lubridate::year(index)<1998) %>% autoplot(value)+autolayer(fc_linear)
 
 ```
 
@@ -196,6 +198,11 @@ From the initial plots, we saw visual evidence of autoregressive and seasonal co
 
 In this section, we fit the best SARIMA model and analyze the results. Simplicity is a desirable property in data science models to help explain the relationship between variables. We choose BIC as our information criteria because it penalizes complex models more than AIC or AICc and therefore selects more simple models with fewer parameters as the best ones. Lower BIC scores are better. 
 
+```{r swap between denny and mingxi, echo=FALSE}
+df <- co2
+# df <- tsibble::as_tsibble(co2) %>%
+#   filter(index < lubridate::ymd('1998-01-01'))
+```
 ```{r search for best ARIMA model}
 model.bic <-df %>%
   model(ARIMA(value ~ 0:1 + pdq(0:8,0:2,0:8) + PDQ(0:12,0:4,0:12), ic="bic", stepwise=F, greedy=F))
