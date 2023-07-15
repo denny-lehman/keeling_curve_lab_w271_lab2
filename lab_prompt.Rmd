@@ -1,8 +1,7 @@
 ---
 title: 'Statistical Methods for Discrete Response, Time Series, and Panel Data (W271): Lab 2'
-geometry: margin=1in
-output:
-  github_document: default
+output: 'pdf_document'  
+classoption: landscape
 ---
 
 # The Keeling Curve
@@ -13,9 +12,14 @@ In 1958 Keeling began continuous monitoring of atmospheric carbon dioxide concen
 
 ```{r load packages, echo = FALSE, message = FALSE}
 library(tidyverse)
+library(ggplot2)
+library(feasts)
 library(tsibble)
-
 library(latex2exp)
+library(patchwork)
+library(fable)
+library(forecast)
+library(stargazer)
 
 theme_set(theme_minimal())
 knitr::opts_chunk$set(dpi=1000)
@@ -49,6 +53,12 @@ Because this is the scenario that you are responding to:
 
 For the first part of this task, suspend reality for a short period of time and conduct your analysis from the point of view of a data scientist doing their work in the early months of 1998. Do this by using data that is included in _every_ R implementation, the `co2` dataset. This dataset is lazily loaded with every R instance, and is stored in an object called `co2`. 
 
+```{r}
+co2 <- as_tsibble(co2) %>% filter(year(index)<1998)
+
+```
+
+
 ## (3 points) Task 0a: Introduction 
 
 Introduce the question to your audience. Suppose that they _could_ be interested in the question, but they don't have a deep background in the area. What is the question that you are addressing, why is it worth addressing, and what are you going to find at the completion of your analysis. Here are a few resource that you might use to start this motivation. 
@@ -62,9 +72,117 @@ Conduct a comprehensive Exploratory Data Analysis on the `co2` series. This shou
 
 What you report in the deliverable should not be your own process of discovery, but rather a guided discussion that you have constructed so that your audience can come to an understanding as succinctly and successfully as possible. This means that figures should be thoughtfully constructed and what you learn from them should be discussed in text; to the extent that there is _any_ raw output from your analysis, you should intend for people to read and interpret it, and you should write your own interpretation as well. 
 
+```{r}
+p1 <- autoplot(co2) +geom_smooth(color="lightgrey")+
+  ggtitle("Fig.1 Atmospheric CO2 concentration\n monthly average, parts per million (ppm) ") +
+  xlab(NULL) + ylab(NULL)
+p2 <- co2 %>% index_by(year = year(index)) %>%
+  summarise(annual_avg = mean(value)) %>%
+  mutate(annual_growth = (annual_avg / lag(annual_avg, 1) - 1) * 100) %>%
+  autoplot(.vars = annual_growth) +
+  xlab(NULL) + ylab(NULL) +
+  ggtitle("Fig.2 Annual growth rate of\n concentration, %")
+p3 <- gg_season(co2) +
+  xlab(NULL) + ylab(NULL) +
+  ggtitle("Fig.3 Seasonal plot of CO2 concentration")
+p4 <- co2 %>% model(STL(value ~ trend(window = 120) + season(window = "periodic"),
+                        robust = TRUE)) %>%
+  components() %>% pull(remainder) %>% gghistogram() +
+  ggtitle("Fig.4 Histogram of irregular\n component by STL")
+# p3 <- ggAcf(co2$value)
+# p4 <- ggPacf(co2$value)
+(p1 | p2) / (p3 | p4)
+```
+
+The data measures the monthly average atmospheric CO2 concentration from 1959 to 1997, expressed in parts per million (ppm). It was initially collected by a infrared gas analyzer installed at Mauna Loa in Hawaii, which was one of the four analyzers installed by Keeling to evaluate whether there was a persistent increase in CO2 concentration. 
+
+Fig.1 shows a clear long-term upward trend, which is confirmed by Fig.2 where the growth rate for each year is above zero. Fig.2 also suggests the average growth rate after 1970 is higher than that before 1970, although there's no evidence of accelerating growth.
+
+Another feature of the data is its robust seasonal pattern, with peak in May and bottom in October almost every year (see Fig.3). Keeling believes it was the result of the activity of land plants.
+
+Fig.4 is the histogram of the remaining or irregular components after removing the trend and the seasonal components from the data with STL^[Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33.]. It looks like a normal distribution without obvious outliers.  
+
+
+```{r}
+co2 %>%
+  features(value, unitroot_kpss)
+co2 %>%
+  mutate(d_value=difference(value)) %>%
+  features(d_value, unitroot_kpss)
+co2 %>%
+  features(value, unitroot_ndiffs)
+co2 %>% gg_tsdisplay(difference(value), plot_type="partial") +labs(subtitle = "Differenced Co2")
+```
+
+
 ## (3 points) Task 2a: Linear time trend model
 
 Fit a linear time trend model to the `co2` series, and examine the characteristics of the residuals. Compare this to a quadratic time trend model. Discuss whether a logarithmic transformation of the data would be appropriate. Fit a polynomial time trend model that incorporates seasonal dummy variables, and use this model to generate forecasts to the year 2020. 
+```{r}
+linear_trend_model<-co2 %>% model(TSLM(value~trend()))
+```
+Since the long term trend of the $CO_2$ data looks linear and the variation around the trend seems stable, a log transformation of the data is not necessary (which is also supported by the stable and symmetric residuals in Fig.5) and we can fit the original data with a linear time trend model as:
+
+\begin{equation}
+\label{eq:one}
+\text{CO}_{2} = \beta_0 + \beta_1t + \epsilon_{t}
+\end{equation} 
+
+, which gives the parameters as:
+
+\begin{equation}
+\label{eq:two}
+\text{CO}_{2} = 311.5 + 0.11*t + \epsilon_{t}
+\end{equation}
+
+This linear trend model implies that the $CO_2$ concentration increased 0.11/month on average during 1959 to 1997. However, the residuals plots in Fig.5 suggest this simple linear trend model is not adequate since: 1) the mean of the residual forms a "U" shape along time, suggesting a quadratic or higher order polynomial trend model may be better; 2) the ACF plots indicates strong seasonal patterns exists in the residuals, suggesting seasonal dummy variables should be included in the model.
+
+```{r}
+gg_tsresiduals(linear_trend_model) + ggtitle("Fig.5 Residual plot of the linear trend model")
+
+```
+
+
+
+```{r}
+co2_copy <- co2 %>% append_row(600) %>%
+  mutate(
+    num_index = time(index),
+    num_index_qudratic = num_index ^ 2,
+    num_index_cubic = num_index ^ 3,
+  )
+for (i in 1:11) {
+  name =
+    co2_copy <-
+    co2_copy %>% mutate("month_{i}" := ifelse(month(index) == i, 1, 0))
+}
+co2_training = co2_copy %>% filter(year(index) < 1991)
+co2_valid = co2_copy %>% filter(year(index) < 1998,year(index) >= 1991)
+co2_forecast = co2_copy %>% filter(year(index) >= 1998)
+
+# stargazer(model_linear,model_quadratic,model_cubic,type="text",
+#           add.lines=list(c("AIC", round(AIC(model_linear),1), round(AIC(model_quadratic),1), round(AIC(model_cubic),1)),
+#                          c("BIC", round(BIC(model_linear),1), round(BIC(model_quadratic),1), round(BIC(model_cubic),1))))
+dummy_name=paste0("month_",1:11,collapse = "+")
+fit <- co2_training |>
+  model(
+    model_linear = TSLM(as.formula(paste0("value ~ num_index   +",dummy_name))),
+    model_quadratic = TSLM(as.formula(paste0("value ~ num_index  + num_index_qudratic +",dummy_name))),
+    model_cubic = TSLM(as.formula(paste0("value ~ num_index + num_index_qudratic + num_index_cubic +",dummy_name)))
+  )
+report(fit)
+vd <- forecast(fit,new_data = co2_valid)
+co2_training %>% filter(index>=yearmonth("1985M01")) %>% autoplot(value,PI = FALSE)+autolayer(vd)+autolayer(co2_valid)
+fabletools::accuracy(vd,co2_valid)
+# although the result above prefer the cubic model, I would suggest a linear or quadratic one.
+final_model_poly <- co2_copy %>% filter(year(index)<1998) %>%
+  model(TSLM(as.formula(paste0("value ~ num_index + ",dummy_name))))
+fc_linear <- final_model_poly %>% forecast(co2_forecast)
+co2_copy %>% filter(year(index)<1998) %>% autoplot(value)+autolayer(fc_linear)
+
+```
+
+
 
 ## (3 points) Task 3a: ARIMA times series model 
 
@@ -187,7 +305,6 @@ autolayer(df, colour="black") +
 ```
 
 
-
 # Report from the Point of View of the Present 
 
 One of the very interesting features of Keeling and colleagues' research is that they were able to evaluate, and re-evaluate the data as new series of measurements were released. This permitted the evaluation of previous models' performance and a much more difficult question: If their models' predictions were "off" was this the result of a failure of the model, or a change in the system? 
@@ -204,13 +321,34 @@ Create a data pipeline that starts by reading from the appropriate URL, and ends
 
 Conduct the same EDA on this data. Describe how the Keeling Curve evolved from 1997 to the present, noting where the series seems to be following similar trends to the series that you "evaluated in 1997" and where the series seems to be following different trends. This EDA can use the same, or very similar tools and views as you provided in your 1997 report. 
 
+```{r}
+library(zoo)
+co2_present_raw=read.csv("https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv",skip=51)
+co2_present <- co2_present_raw %>% 
+  mutate(time_index=make_date(year,month,day)) %>% 
+  dplyr::select(time_index,average) %>%
+  as_tsibble(index = time_index) %>%
+  mutate(average =replace(average,average<=-999,NA)) %>%
+  mutate(average = na.approx(average))
+
+```
+
+
 ## (1 point) Task 2b: Compare linear model forecasts against realized CO2
 
 Descriptively compare realized atmospheric CO2 levels to those predicted by your forecast from a linear time model in 1997 (i.e. "Task 2a"). (You do not need to run any formal tests for this task.) 
+```{r}
+co2 %>% autoplot(value) + autolayer(fc_linear) + autolayer(co2_present)
+```
+
 
 ## (1 point) Task 3b: Compare ARIMA models forecasts against realized CO2  
 
 Descriptively compare realized atmospheric CO2 levels to those predicted by your forecast from the ARIMA model that you fitted in 1997 (i.e. "Task 3a"). Describe how the Keeling Curve evolved from 1997 to the present. 
+```{r}
+co2 %>% autoplot(value) + autolayer(fc_arima) + autolayer(co2_present)
+```
+
 
 ## (3 points) Task 4b: Evaluate the performance of 1997 linear and ARIMA models 
 
@@ -221,6 +359,11 @@ After reflecting on your performance on this threshold-prediction task, continue
 ## (4 points) Task 5b: Train best models on present data
 
 Seasonally adjust the weekly NOAA data, and split both seasonally-adjusted (SA) and non-seasonally-adjusted (NSA) series into training and test sets, using the last two years of observations as the test sets. For both SA and NSA series, fit ARIMA models using all appropriate steps. Measure and discuss how your models perform in-sample and (psuedo-) out-of-sample, comparing candidate models and explaining your choice. In addition, fit a polynomial time-trend model to the seasonally-adjusted series and compare its performance to that of your ARIMA model.
+```{r}
+# Scott mentioned STL for seasonal adjusment
+```
+
+
 
 ## (3 points) Task Part 6b: How bad could it get?
 
