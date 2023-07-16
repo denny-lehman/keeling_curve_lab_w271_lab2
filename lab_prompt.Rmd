@@ -1,7 +1,14 @@
 ---
 title: 'Statistical Methods for Discrete Response, Time Series, and Panel Data (W271): Lab 2'
-output: 'pdf_document'  
-classoption: landscape
+subtitle: "Investigating the Keeling Curve and forecasting CO2 levels in Earth's atmosphere"
+author: "Denny Lehman, Mingxi Liu, Aruna Bisht, Deepika Maddali"
+# classoption: landscape
+fontsize: 11pt
+geometry: margin=1in
+output: 
+  pdf_document:
+    toc: true
+    number_sections: true
 ---
 
 # The Keeling Curve
@@ -54,7 +61,7 @@ kable(test_results,row.names=TRUE,caption = "KPSS test of orignal and 1st differ
 ```
 
 
-Another feature of the data is its robust seasonal pattern, with the peak in May and the bottom in October almost every year (see Fig.5). This seasonality can also be seen in Fig.4. Keeling believes it was the result of the activity of land plants.
+Another feature of the data is its robust seasonal pattern, with the peak in May and the bottom in October almost every year (see Fig.5). This seasonality can also be seen in Fig.4. Keeling believes it was the result of plant photosynthesis.
 
 Fig.4 is the histogram of the remaining or irregular components after removing the trend and the seasonal components from the data with STL^[Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33.]. It looks like a normal distribution without obvious outliers.  
 
@@ -172,23 +179,23 @@ co2_ts %>%  autoplot(value) + autolayer(fc_poly) + ggtitle("Fig.7 Forecasts of C
   theme(text = element_text(size = 8)) 
 ```
 
-## (3 points) Task 3a: ARIMA times series model 
+## ARIMA times series model 
 
 We will use the Box Jenkins process to find the best ARIMA model via the following steps:
 
-- Determine the appropriate model from eda
-- find the best parameters
-- examine the residuals using dianostic plots and statistical tests.
+- Determine the appropriate model from EDA
+- Find the best parameters
+- Examine the residuals using dianostic plots and statistical tests
 
-From the initial plots, we saw visual evidence of autoregressive and seasonal components. The ACF plots showed long slow decay of positive lag correlation, evidence of differencing. There is evidence of seasonality as well. We expect a seasonal arima model (SARIMA) with differencing to be best. 
+The EDA revealed that the time series of CO2 had both autoregressive and seasonal components. Considering the ACF plot's low slow decay of autocorrelation, we expect differencing to be a key part of any time series model. In addition, we predict that the model will require seasonal components to model the 12 month cycle of seasonal variations. Therefore, we expect a seasonal arima model (SARIMA) with differencing to be best.
 
-In this section, we fit the best SARIMA model and analyze the results. Simplicity is a desirable property in data science models to help explain the relationship between variables. We choose BIC as our information criteria because it penalizes complex models more than AIC or AICc and therefore selects more simple models with fewer parameters as the best ones. Lower BIC scores are better. 
+In this section, we fit the best SARIMA model and analyze the results. We choose BIC as our information criteria for model selection. Simplicity is a desirable property in data science models to help explain the relationship between variables. We choose BIC as our information criteria because it penalizes complex models more than AIC or AICc and therefore selects more simple models with fewer parameters as the best ones. Lower BIC scores are better. 
 
-```{r swap between denny and mingxi, echo=FALSE}
+```{r swap between denny and mingxi, echo=FALSE,  warning=FALSE}
 df <- tsibble::as_tsibble(co2) %>%
   filter(index < lubridate::ymd('1998-01-01'))
 ```
-```{r search for best ARIMA model, echo=FALSE}
+```{r search for best ARIMA model, echo=FALSE,  warning=FALSE}
 model.bic <-df %>%
   model(ARIMA(value ~ 0:1 + pdq(0:8,0:2,0:8) + PDQ(0:12,0:4,0:12), ic="bic", stepwise=F, greedy=F))
 
@@ -196,23 +203,24 @@ model.bic %>%
   report()
 
 ```
-After searching over seasonal and non seasonal P,D, and Q variables, the best model was an ARIMA(0,1,1)(1,1,2)[12] model with BIC score of 201.78. Next, we conclude the Box Jenkins process to evaluate the model via diagnostic plots and statistical tests.
+After searching over seasonal and non-seasonal P,D, and Q variables, the best model was an ARIMA(0,1,1)(1,1,2)[12] model with BIC score of 201.78. Next, we evaluate the model via diagnostic plots and statistical tests, concluding the Box Jenkins process.
 
  
-```{r diagnostic plots, echo=FALSE}
+```{r diagnostic plots, echo=FALSE, warning=FALSE, fig.height=5}
 x <- model.bic %>% augment() # tsibble
 residuals <- x$.resid # vector
 
 par(mfrow=c(2,2))
-plot(residuals)
-acf(residuals)
-pacf(residuals)
-hist(residuals)
+plot(residuals,main = "Fig.8 Residuals of the SARIMA model")
+acf(residuals, main="Fig.9 ACF plot of residuals")
+pacf(residuals, main="Fig.10 PACF plot of residuals")
+hist(residuals, main="Fig.11 histogram of residuals")
+
 ```
 
-The residual plots show that the SARIMA model was effective, with the residuals looking like stationary white noise. The time series has a mean of 0 with about constant variance, the ACF plot shows no autocorrelation beyond the initial lag value. The PACF plot appears to have a significant peak around the 3rd lag term, but this may be due to randomness, as it is barely passing the dashed blue line.The histogram looks normally distributed at 0 with outliers creating a left tail. 
+The residual plots (Fig 8-11) show that the SARIMA model was effective, with the residuals looking like stationary white noise (Fig 8). The time series has a mean of 0 with about constant variance, the ACF plot (Fig 9) shows no autocorrelation beyond the initial lag value. The PACF plot (Fig 10) appears to have a significant peak around the 3rd lag term, but this may be due to randomness, as it is barely passing the dashed blue line. The histogram (Fig 11) looks normally distributed at 0 with outliers creating a left tail. 
 
-```{r test tests}
+```{r test tests,  warning=FALSE, echo=FALSE, fig.height=3}
 tsresid <- model.bic %>% augment() %>% select(.resid)
 # adf test on residuals
 dickey <- adf.test(tsresid$.resid, alternative = "stationary", k = 10)
@@ -226,9 +234,9 @@ resid.ts<-model.bic %>%
 box_1 <- Box.test(resid.ts, lag = 1, type = "Ljung-Box")
 box_10 <- Box.test(resid.ts, lag = 10, type = "Ljung-Box")
 
-adf.test(tsresid$.resid, alternative = "stationary", k = 10)
-Box.test(resid.ts, lag = 1, type = "Ljung-Box")
-Box.test(resid.ts, lag = 10, type = "Ljung-Box")
+# adf.test(tsresid$.resid, alternative = "stationary", k = 10)
+# Box.test(resid.ts, lag = 1, type = "Ljung-Box")
+# Box.test(resid.ts, lag = 10, type = "Ljung-Box")
 
 # qqplot on residuals, histogram on residuals
 p1 <- model.bic %>%
@@ -241,7 +249,8 @@ p2 <- model.bic %>%
   augment() %>%
   select(.resid) %>% 
   ggplot(aes(sample=.resid)) +
-  geom_qq() + stat_qq_line()
+  geom_qq() + stat_qq_line() + ggtitle("Fig.12 QQ plot of residuals") +
+  theme(text = element_text(size = 8)) 
 
 
 p1/p2
@@ -253,20 +262,20 @@ The Box-Ljung test has the null hypothesis that the data presented is independen
 
 Finally, we visually inspect the histogram of the residuals and the qq plot to see if the residuals appear normally distributed. The histogram has the guassian bell shaped curve with a few outliers. The qq plot shows that the data matches up with the normal distribution's quantiles. With these plots, we can confidently say that the residuals are visibly normally distributed. 
 
-To conclude, both diagnostic plots and statistical tests show that the residuals are stationary with mean 0, constant variance, and no autoregression or seasonality. We forecast our model to the year 2022.
+To conclude, both diagnostic plots and statistical tests show that the residuals are stationary with mean 0, constant variance, and no autoregression or seasonality. We forecast our model to the year 2022 (Fig 13).
 
-```{r}
+```{r co2 to 2022, echo=FALSE,  warning=FALSE, message=FALSE, fig.height=3}
 model.bic %>% 
   forecast(h=(2022-1998)*12) %>%
 autoplot(colour="cornflowerblue") +
 autolayer(df, colour="black") +
-  labs(y = "CO2 ppm",title = "CO2 levels from 1959 to 2022") +
-  guides(colour = guide_legend(title = "Forecast"))
+  labs(y = "CO2 ppm",title = "Fig.13 CO2 levels from 1959 to 2022") +
+  guides(colour = guide_legend(title = "Forecast")) 
 ```
 
-## (3 points) Task 4a: Forecast atmospheric CO2 growth 
+## Atmospheric CO2 growth Forecast
 
-```{r forecast}
+```{r forecast, echo=FALSE, warning=FALSE, message=FALSE}
 fc_arima <- model.bic %>% forecast(h=1900)
 fc <-fc_arima %>% mutate(upper=quantile(value,0.95),lower=quantile(value,0.05))
 first_420 <- fc %>% filter(upper>=420)
@@ -281,18 +290,18 @@ last_500 <- max(last_500$index)
 ```
 
 
-Based on our model, the first time we could potentially see CO2 in 420 ppm is `r first_420` because that is when the upper 95% confidence interval (CI) of our model first reaches 420 ppm. The last time the model predicts we will see CO2 at 420 ppm is `r last_420`, which is based on the final time the lower 95% CI is below 420. 
+Based on our model, the first time we could potentially see CO2 in 420 ppm is `r as.Date(first_420)` because that is when the upper 95% confidence interval (CI) of our model first reaches 420 ppm. The model's lower 95% CI hovers around 420, so there is no predicted final time. *Add why this level of CO2 is important*
 
-The first time our model predicts the earth to reach 500 ppm CO2 on `r first_500`, which is when the 95% CI reaches 500 ppm.  The model's lower 95% CI never reaches 500, so there is no predicted final time. Below is the prediction of our model to the year 2100. Confidence intervals are shown fanning outward. The error of the predictions compounds overtime which expands the confidence intervals into a funnel shape. The farther out in time from the recorded data points, the less accurate the prediction.
+The first time our model predicts the earth to reach 500 ppm CO2 on `r as.Date(first_500)`, which is when the 95% CI reaches 500 ppm.  The model's lower 95% CI never reaches 500, so there is no predicted final time. Below is the prediction of our model to the year 2100. Confidence intervals are shown fanning outward. The error of the predictions compounds overtime which expands the confidence intervals into a funnel shape. The farther out in time from the recorded data points, the less accurate the prediction.
 
 
 
-```{r forecast plot}
+```{r forecast plot, echo=FALSE, warning=FALSE, message=FALSE, fig.height=3}
 model.bic %>%
   forecast(h=(2100-1998)*12) %>%
 autoplot(colour="cornflowerblue") +
 autolayer(df, colour="black") +
-  labs(y = "CO2 ppm",title = "CO2 levels from 1959 to 2100") +
+  labs(y = "CO2 ppm",title = "Fig.14 CO2 levels from 1959 to 2100") +
   guides(colour = guide_legend(title = "Forecast"))
 ```
 
@@ -399,10 +408,17 @@ plot.subseries <- ggsubseriesplot(x = co2) +
                   ggtitle(TeX(r'(Monthly Mean  Plot for $CO_2$ PPM Level)'))
 plot.subseries
 ```
-```{r echo = FALSE, message = FALSE, fig.width = 4, fig.height = 2}
+```{r echo = FALSE, message = FALSE, fig.width = 4, fig.height = 3}
 plot.box <- boxplot(co2 ~ cycle(co2))
 #plot.box
 ```
 ​
 *Observations*
 The plots show that the CO2 level...
+
+\appendix
+\section{Appendix: Model Robustness}
+
+```{r}
+fit_poly %>% dplyr::select(cubic) %>% report()
+```
