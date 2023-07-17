@@ -10,7 +10,7 @@ output:
     toc: true
     number_sections: true
 abstract: | 
-  TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
+  The Keeling curve is a [INTRODUCE THE CONCEPT IN ONE SENTENCE HERE and SHOW IMPORTANCE]. In this paper, the Keeling curve was analyzed from two perspectives, one from a researcher in 1998 and one from today (2023). From the perspective of 1998, EDA was performed from 1959 to 1997 and a linear time trend model was fit. After analysis of the assumptions, a cubic polynomial model was selected. Using the Box-Jenkins method, a SARIMA model was constructed and forecast into 2100. To contrast those models, we present the same analysis from the perspective of 2023. A modern data pipeline was constructed for CO2 data and the linear model and SARIMA model were compared to the actual CO2 levels. Both models under predicted CO2 with [ADD SOMETHING ON RMSE or OTHER HERE]. Finally, new models were fit on the 2023 a forecasted into the future with the goal of reviewing model predictions in a future analysis. 
 ---
 
 # Introduction
