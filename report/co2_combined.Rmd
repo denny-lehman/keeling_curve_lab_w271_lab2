@@ -779,12 +779,11 @@ train_data_non_season %>%
 
 
 
-```{r forecast linear non seasonal model}
+```{r forecast linear non seasonal model, include=FALSE}
 
 test.size = 96 # fix please
 
 model.forecasts_weekly_non_seasonal <-forecast(fit_linear_NON_season_weekly, h=test.size)
-model.forecasts_weekly_non_seasonal  
 # Merge the two data frames on the 'index' column, and handle missing values with 0
 merged_df_weekly_non_seasonal <- merge(model.forecasts_weekly_non_seasonal, test_data_non_season, by = "time_index", all.x = TRUE)
 # merged_df_yearly[is.na(merged_df)] <- 0  # Replace missing values with 0
@@ -833,7 +832,7 @@ model_weekly_ARIMA_forecast %>%
 ```
 
 
-```{r ,  fig.height=3}
+```{r , echo = FALSE, fig.height=3}
 # Year 2122 forcast and on Weekly Dataset
 
 model_yearly_ARIMA_forecast <- fabletools::forecast(model.bic_monthlyyearly, h=1500)
@@ -842,40 +841,20 @@ model_yearly_ARIMA_forecast %>%
   autoplot(train_data_seasonally_adjusted) +
   labs(
     title = "Forecasts of CO2 level Up To 2122 using ARIMA model",
-    y = "CO2 Level", x = "Time"
-    
-    # 650
-  )
+    y = "CO2 Level", x = "Time")
 ```
 
 
+```{r , echo=FALSE}
+# predicted co2 value 420 
+# Whether 420ppm CO2 present in data or not?
+# period for [Jan 2022 to Dec 2122]
 
-```{r}
-test.size = 12784 # weekly time series unit
-
-model.forecasts_ARIMA_weekly <-forecast(model.bic_weekly_ARIMA, h=test.size)
-model.forecasts_ARIMA_weekly
-```
-
-
-```{r include=FALSE}
 # Forecasts of Section2 ARIMA model for the period [Jan 2022 to Dec 2122]
 
 test.size = 12784 # weekly time series unit
 
 model.forecasts_ARIMA_weekly <-forecast(model.bic_weekly_ARIMA, h=test.size)
-model.forecasts_ARIMA_weekly
-```
-
-
-```{r}
-# predicted co2 value 420 
-# Whether 420ppm CO2 present in data or not?
-# period for [Jan 2022 to Dec 2122]
-
-library(dplyr)
-
-# Assuming your model.forecasts_ARIMA_weekly contains the columns 'date' and '.mean'
 
 # Check if there is any value near 420 (within a range of +/- 10) in the .mean column
 value_420ppm <- any(abs(model.forecasts_ARIMA_weekly$.mean - 420) <= 10)
@@ -889,12 +868,10 @@ print(value_420ppm)
 
 
  
-```{r}
+```{r, include=FALSE}
 # predicted co2 value 500
 # Whether 500ppm CO2 present in data or not?
 # period for [Jan 2022 to Dec 2122]
-
-library(dplyr)
 
 # Assuming your model.forecasts_ARIMA_weekly contains the columns 'date' and '.mean'
 
@@ -908,22 +885,7 @@ print(value_500ppm)
 ```
 
 
-```{r }
+```{r echo =FALSE}
 # ## Confidence interval
-
 model.forecasts_ARIMA_weekly_confidence_interval <-model.forecasts_ARIMA_weekly %>% mutate(upper=quantile(.mean,0.95),lower=quantile(.mean,0.05))
-model.forecasts_ARIMA_weekly_confidence_interval
-
 ```
-
-
-
-
-
-
-
-
-
-
-
-
