@@ -593,109 +593,10 @@ kable(compare_test %>% dplyr::select(-.type,-MASE,-RMSSE))
 Now we evaluate the accuracy for the best polynomial and ARIMA models built on the data till 1997. The forecast and actual values are plotted in Fig.X, and a quick glance would tell the both forecast are systematically lower than the actual data. More formally, the RMSE of prediction from the best polynomial model reaches `r round(compare_test$RMSE[1],2)`, and that of the best ARIMA model is `r round(compare_test$RMSE[2],2)`.
 
 
-
-```{r do we need this?}
-# co2_present <- co2_present_raw %>%
-#   mutate(date = paste(year, month, day, sep = "-")) %>%
-#   mutate(index = as.Date(date)) %>%
-#   filter(year(date) >= 1997, average > 0) %>%
-#   as_tsibble(index = index)
-# 
-# co2_present
-```
-
-
-```{r bunch of dataframes maybe not used}
-# which if any do we need to keep?
-# co2_present <- co2_present_raw %>% 
-#   mutate(time_index=lubridate::make_date(year,month,day)) %>% 
-#   dplyr::select(time_index,average) %>%
-#   as_tsibble(index = time_index) %>%
-#   mutate(average =replace(average,average<=-999,NA)) %>%
-#   mutate(average = na.approx(average))
-# 
-# co2_present_raw1 <- co2_present_raw %>%
-#   mutate(date = paste(year, month, day, sep = "-")) %>%
-#   mutate(index = as.Date(date)) %>%
-#   filter(year(date) >= 1997, average > 0) %>%
-#   as_tsibble(index = index)
-# 
-# # broken
-# # co2_present <- co2_present %>%
-# #   mutate(date = paste(year, month, day, sep = "-")) %>%
-# #   mutate(index = as.Date(date)) %>%
-# #   filter(year(date) >= 1997, average > 0) %>%
-# #   as_tsibble(index = index)
-# 
-# co2_present_yearly <- co2_present[c("year", "average")]
-# co2_present_yearly_aggregate <- co2_present_yearly %>%
-#   #mutate(year = year(index))%>%
-#   group_by(year) %>%
-#   summarize(average = mean(average))
-# 
-# co2_present_yearly_aggregate <- co2_present_yearly_aggregate %>%
-#   arrange(desc(year))
-# 
-# # Extract the last two years for the test dataset
-# test_data <- co2_present_yearly_aggregate %>%
-#   slice(1:2)
-# 
-# # Extract the remaining data for the training dataset
-# train_data <- co2_present_yearly_aggregate %>%
-#   slice(-(1:2))
-# 
-# # co2_present_monthly
-# co2_present_monthly_aggregate <- co2_present_monthly %>%
-#   arrange(desc(index))
-# 
-# # Extract the last two years for the test dataset
-# test_data_STL <- co2_present_monthly_aggregate %>%
-#   slice(1:24)
-# 
-# # Extract the remaining data for the training dataset
-# train_data_STL <- co2_present_monthly_aggregate %>%
-#   slice(-(1:24))
-# 
-# co2_present_reduced <- co2_present%>%select(average , index)
-# 
-# co2_present_reduced1 <- as_tsibble(co2_present_reduced)
-# 
-# # Create the year-month combination as a new column
-# co2_present_reduced2 <- co2_present_reduced1 %>%
-#   mutate(yearmonth = yearmonth(index))
-# 
-# # Group by the year-month combination and calculate the mean of averages
-# co2_present_yearlymonthly <- co2_present_reduced2 %>%
-#   group_by(yearmonth) %>%
-#   summarize(mean_average = mean(average))
-# 
-# # Extracted certain columns but getting Tibble object 
-# 
-# selected_data2 <- co2_present_yearlymonthly[c("yearmonth" ,"mean_average" )]
-# 
-# # Assuming your tsibble object is named "selected_data"
-# grouped_data <- selected_data2 %>%
-#   group_by(yearmonth) %>%
-#   summarize(mean_average = mean(mean_average))
-# 
-# # Assuming your tibble is named "your_tibble"
-# tsbl_data <- grouped_data %>%
-#   as_tsibble(index = yearmonth)
-```
-
-
-
 ## 5b. Train best models on present data
 In the previous section, we conducted exploratory data analysis to visually assess the forecast of both the linear model and ARIMA model for atmospheric C02 levels. These models captured the historic trends and patterns effectively up to a certain point 1997. However as we moved from 1997, the forecasted lines started to deviate, making it challenging to determine which model better fits the data. To quantitatively evaluate the accuracy of the models, we conducted a formal evaluation using the Root Mean Squared Error (RMSE) test. Both the ARIMA and linear models were developed using data from 1974 to 1993. We used these models to forecast the atmospheric CO2 levels until 2023. Since models were built on a monthly dataset, the predictions we obtained were also on a monthly basis for the period from 1993 to 2023. 
 
 To ensure a fair comparison of these predictions we aggregated the current dataset to a monthly level. The model performance of ARIMA model , after comparing its predictions with the current dataset, resulted in an RMSE of 51.66 On the other hand, the linear model which considered both the seasonal and trend components, had an RMSE of 14.037. It looks like that data has certain trend and pattern which are better captured by linear regression.
-
-
-
-
-## STL    ####################
-
-
 
 
 ```{r , include = FALSE , fig.height=3 }
@@ -704,21 +605,6 @@ To ensure a fair comparison of these predictions we aggregated the current datas
 
 dcmp_add <- co2_present_monthly %>%
   model(stl = STL(value))
-
-# are these graphs discussed at all? 
-p33 <- components(dcmp_add) %>% autoplot()
-
-p34<- components(dcmp_add)%>%
-  ACF(remainder) %>%
-  autoplot() + labs(title="Residuals additive decomposition")
-
-
-```
-
-
-```{r echo=FALSE}
-# Seasonal adjustment vs Time
-
 # is this graph needed?
 
 dcmp_add %>%
@@ -734,7 +620,7 @@ dcmp_add %>%
 
 
 **Forecasts of Section 2 ARIMA model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
-```{r include = FALSE}
+```{r split train and test data, include = FALSE}
 
 
 seasonally_adjusted_STL <- dcmp_add %>%
@@ -759,7 +645,7 @@ model.bic_monthlyyearly %>%
 
 
 
-```{r include = FALSE}
+```{r forecast ARMIA seasonal adjusted, include = FALSE}
 # Forecasts of Section 2 ARIMA model on Train Dataset [Jan 2022 to Dec 2023]
 test.size = (2024-2022)*12 # =24
 
@@ -786,26 +672,21 @@ print(paste("ARIMA model Root Mean Squared Error (RMSE):", rmse_monthly_yearly))
 
 
 **Forecasts of Section 2 LINEAR model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
-```{r  echo = FALSE , fig.height=3}
+```{r train linear seasonal adjusted model, echo = FALSE }
 
 # LINEAR model development on Training dataset for the period Jan 1997 to Dec 2021
-fit_linear_season_adjusted_yeary_monthly <- train_data_seasonally_adjusted%>%model(model_trend =  TSLM(season_adjust ~ trend() + season() ))
+train_data_seasonally_adjusted %>% 
+  model(model_trend =  TSLM(season_adjust ~ trend() + season() )) -> fit_linear_season_adjusted_yeary_monthly
+
+```
+
+
+```{r forecast linear seasonal adjusted model, echo=FALSE}
 
 # Forecasts of Section 2 LINEAR model on Test Dataset [Jan 2022 to Dec 2023]
 test.size = (2024-2022)*12 #24
 
 model.forecasts__season_linear_yearly_monthly <-forecast(fit_linear_season_adjusted_yeary_monthly, h=test.size)
-
-p39 <- augment(fit_linear_season_adjusted_yeary_monthly)%>%ggplot(aes(x=index)) +
-  geom_line(aes(y = season_adjust , color = "Data"))  + 
-  geom_line(aes(y = .fitted , color = "Fitted")) + 
-  labs( y= "Time" , title = " C02 Fit linear season")
-p39
-
-```
-
-
-```{r}
 
 # Merge the two data frames on the 'index' column, and handle missing values with 0
 merged_df_yearly_monthly_linear <- merge(model.forecasts__season_linear_yearly_monthly, test_data_seasonally_adjusted, by = "index", all.x = TRUE)
@@ -823,99 +704,38 @@ rmse_seasonal_yearly_monthly <- sqrt(mean(selected_df_yearly_monthly_linear$diff
 
 # Print the RMSE
 print(paste("Linear model Root Mean Squared Error (RMSE):", rmse_seasonal_yearly_monthly))
+
 ```
 
 ### NON-Season
 
 
-
-```{r }
-# NON-Seasonal adjusted
-co2_present_reduced_weekly <- co2_present[c("time_index" ,"average")]
-co2_present_reduced_weekly
-
-```
-
-```{r }
-# NON-Seasonal adjusted
-co2_present_reduced_weekly <- co2_present_reduced_weekly %>%
-  mutate(yearweek = yearweek(time_index))
-co2_present_reduced_weekly
-```
-
-```{r }
-# Assuming your tsibble object is named "selected_data"
-# NON-Seasonal adjusted
-
-co2_present_reduced_weekly_group <- co2_present_reduced_weekly %>%
-  group_by(yearweek) %>%
-  summarize(mean_average = mean(average))
-co2_present_reduced_weekly_group
-```
-
-```{r include = FALSE}
-# NON-Seasonal adjusted
-
-co2_present_reduced_weekly_group <- co2_present_reduced_weekly_group[c("yearweek" , "mean_average")]
-co2_present_reduced_weekly_group
-
-```
-
-
-```{r }
-# NON-Seasonal adjusted
-
-library(tsibble)
-
-# Currenlty in 
-# Assuming your tibble is named "your_tibble"
-co2_present_reduced_weekly_group <- co2_present_reduced_weekly_group %>%
-  as_tsibble(index = yearweek)
-co2_present_reduced_weekly_group
-```
-
-
-```{r include=FALSE}
+```{r train test split for non seasonal data, include=FALSE}
 # CO2 data Split into Train and Test Non-Seasonally Adjusted Dataset
-
-
-co2_present_reduced_weekly_group <- co2_present_reduced_weekly_group %>%
-  arrange(desc(yearweek))
+co2_present %>% 
+  mutate(time_index = yearweek(time_index)) %>% # converts to 2023 W27 format
+  summarize(value = mean(average)) %>%
+  arrange(desc(time_index)) -> co2_present_reduced_weekly_group
 
 # Extract the last two years for the test dataset
 test_data_non_season <- co2_present_reduced_weekly_group %>%
-  slice(1:96) %>% rename(index = yearweek)
+  slice(1:96)
 
 # Extract the remaining data for the training dataset
 train_data_non_season <- co2_present_reduced_weekly_group %>%
-  slice(-(1:96))%>% rename(index = yearweek)
+  slice(-(1:96))
 
-
-# Print the train datasets
-print("Training Data:")
-print(train_data_non_season)
-
-# Print the test 
-print("Test Data:")
-print(test_data_non_season)
+# Filling gaps
+train_data_non_season <- tsibble::fill_gaps(train_data_non_season)
 
 ```
 
 
 ### ARIMA model development on Non-seasonally adjusted training datase
-```{r include = FALSE}
-
-# ARIMA model development on Non-seasonally adjusted training dataset for the period Jan 1997 to Dec 2021
-# NON-Seasonal adjusted
-
-library("fabletools")
-
-# Filling gaps
-train_data_non_season <- tsibble::fill_gaps(train_data_non_season)
-
+```{r train ARIMA non-seasonal model, include = FALSE}
 # Developing model from non-seasonal adjusted dataset
 model.bic_weekly_ARIMA <-train_data_non_season %>%
-  model(fable::ARIMA(mean_average ~ 0:1 + pdq(0:4,0:2,0:4) + 
+  model(fable::ARIMA(value ~ 0:1 + pdq(0:4,0:2,0:4) + 
                        PDQ(0:5,0:3,0:5, period=12),
                      ic="bic", stepwise=F, greedy=F))
 
@@ -923,109 +743,56 @@ model.bic_weekly_ARIMA <-train_data_non_season %>%
   report()
 ```
 
-```{r }
-# Forecasts of Section 2 ARIMA model on Non-seasonally adjusted Train Dataset [Jan 2022 to Dec 2023]
-# NON-Seasonal adjusted
 
-test.size = 96
+```{r forecast non seasonal arima model, echo=FALSE, message=FALSE}
+
+test.size = 96 # fix this. what is 96?
 
 model.forecasts_ARIMA_weekly <-forecast(model.bic_weekly_ARIMA, h=test.size)
-model.forecasts_ARIMA_weekly
-
-```
-
-```{r }
-
-# Comparision of the ARIMA model prediction made in Section 2 for the period Jan 2022 to Dec 2023 with the Present actual CO2 values observed for the period Jan 2022 to Dec 2023
-# NON-Seasonal adjusted
-
-
-# Assuming model.forecasts and co2_present_monthly are your data frames
 
 # Merge the two data frames on the 'index' column, and handle missing values with 0
-merged_df_weekly <- merge(model.forecasts_ARIMA_weekly, test_data_non_season, by = "index", all.x = TRUE)
-# merged_df_yearly[is.na(merged_df)] <- 0  # Replace missing values with 0
+merged_df_weekly <- merge(model.forecasts_ARIMA_weekly, test_data_non_season, by = "time_index", all.x = TRUE)
 
 # Select the desired columns and rename them if needed
 selected_df_weekly <- merged_df_weekly %>%
-  select(index, mean_average.y , .mean) %>%
-  rename(predicted = .mean, current_value = mean_average.y)
-
-# Print the result
-print(selected_df_weekly)
-```
-
-```{r echo=FALSE}
-# #After comparision, Evaluate performance of LINEAR MODEL from Section 2 on the Present CO2 Dataset for the period Jan 2022 to Dec 2023
-# NON-Seasonal adjusted
-
-# Remove rows with missing values in 'predicted' or 'current_value'
-# selected_df_linear <- selected_df_linear[complete.cases(selected_df_linear[c('predicted', 'current_value')]), ]
+  select(time_index, value.y , .mean) %>%
+  rename(predicted = .mean, current_value = value.y)
 
 # Calculate the squared differences between 'predicted' and 'current_value'
 selected_df_weekly$diff_squared <- (selected_df_weekly$predicted - selected_df_weekly$current_value)^2
 
 # Calculate the RMSE
-rmse_yearly_weekly_non_season <- sqrt(mean(selected_df_yearly$diff_squared))
+rmse_yearly_weekly_non_season <- sqrt(mean(selected_df_weekly$diff_squared))
 
 # Print the RMSE
 print(paste("Root Mean Squared Error (RMSE):", rmse_yearly_weekly_non_season))
+```
+
+
+```{r train lienar non seasonal model, echo = FALSE, fig.height=3 }
+# train_data_non_season <- train_data_non_season%>%as_tsibble()
+train_data_non_season %>% 
+  model(model_trend =  TSLM(value ~ trend() + season() )) ->
+  fit_linear_NON_season_weekly
 
 ```
 
 
-```{r , echo = FALSE, fig.height=3 }
-## Using NON- Seasonally Adjusted data for LINEAR
-# LINEAR model development on NON- Seasonally Adjusted Training dataset for the period Jan 1997 to Dec 2021
-# NON-Seasonal adjusted
 
-train_data_non_season <- train_data_non_season%>%as_tsibble()
-fit_linear_NON_season_weekly <- train_data_non_season%>%model(model_trend =  TSLM(mean_average ~ trend() + season() ))
+```{r forecast linear non seasonal model}
 
-p39 <- augment(fit_linear_NON_season_weekly)%>%ggplot(aes(x=yearweek)) +
-  geom_line(aes(y = mean_average , color = "Data"))  + 
-  geom_line(aes(y = .fitted , color = "Fitted")) + 
-  labs( y= "Time" , title = " C02 Fit linear season")
-p39
-
-```
-
-```{r include = FALSE}
-# Forecasts of Section 2 LINEAR model on NON- Seasonally Adjusted Test Dataset [Jan 2022 to Dec 2023]
-
-test.size = 96
+test.size = 96 # fix please
 
 model.forecasts_weekly_non_seasonal <-forecast(fit_linear_NON_season_weekly, h=test.size)
 model.forecasts_weekly_non_seasonal  
-```
-
-```{r }
-# Comparision of the LINEAR model prediction made in Section 2 NON- Seasonally Adjusted for the period Jan 2022 to Dec # 2023 with the Present actual CO2 values observed for the period Jan 2022 to Dec 2023
-
-# Merging Predictions from ARIMA Model and Current Values for NON- Seasonally Adjusted Dataset
-
-library(dplyr)
-
-# Assuming model.forecasts and co2_present_monthly are your data frames
-
 # Merge the two data frames on the 'index' column, and handle missing values with 0
-merged_df_weekly_non_seasonal <- merge(model.forecasts_weekly_non_seasonal, test_data_non_season, by = "yearweek", all.x = TRUE)
+merged_df_weekly_non_seasonal <- merge(model.forecasts_weekly_non_seasonal, test_data_non_season, by = "time_index", all.x = TRUE)
 # merged_df_yearly[is.na(merged_df)] <- 0  # Replace missing values with 0
 
 # Select the desired columns and rename them if needed
 selected_weekly_non_seasonal <- merged_df_weekly_non_seasonal %>%
-  select(yearweek, mean_average.y , .mean) %>%
-  rename(predicted = .mean, current_value = mean_average.y)
-
-# Print the result
-print(selected_weekly_non_seasonal)
-```
-
-```{r echo=FALSE}
-# #After comparision, Evaluate performance of ARIMA MODEL from Section 2 on the Present CO2 Dataset for the period Jan 2022 to Dec 2023
-
-# Remove rows with missing values in 'predicted' or 'current_value'
-# selected_df_linear <- selected_df_linear[complete.cases(selected_df_linear[c('predicted', 'current_value')]), ]
+  select(time_index, value.y , .mean) %>%
+  rename(predicted = .mean, current_value = value.y)
 
 # Calculate the squared differences between 'predicted' and 'current_value'
 selected_weekly_non_seasonal$diff_squared <- (selected_weekly_non_seasonal$predicted - selected_weekly_non_seasonal$current_value)^2
@@ -1036,10 +803,8 @@ rmse_weekly_non_seasonal <- sqrt(mean(selected_weekly_non_seasonal$diff_squared)
 # Print the RMSE
 print(paste("Root Mean Squared Error (RMSE):", rmse_weekly_non_seasonal))
 
-
-## ** The RMSE of the linear model is 1.78, but the RMSE of the ARIMA model is 0.11932, which is smaller. Therefore, the ARIMA model is a better model**
-
 ```
+
 
 ### (3 points) Task Part 6b: How bad could it get?
 **With the non-seasonally adjusted data series, generate predictions for when atmospheric CO2 is expected to be at 420 ppm and 500 ppm levels for the first and final times (consider prediction intervals as well as point estimates in your answer). Generate a prediction for atmospheric CO2 levels in the year 2122. How confident are you that these will be accurate predictions?.Generate a prediction for atmospheric CO2 levels in the year 2100. How confident are you that these will be accurate predictions?**
