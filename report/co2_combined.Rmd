@@ -320,11 +320,12 @@ last_500 <- max(last_500$index)
 
 
 d <- data.frame(
-  'CO2 ppm level' = c('420 ppm', '500 ppm'),
+  'CO2 ppm level' = c("420 ppm", "500 ppm"),
   'earliest occurance' = c(first_420,first_500), 
   'point_estimate' = c(mean_420, mean_500),
-  'final occurance' = c('never', 'never'),
-  row.names = c('420 ppm','500 ppm'))
+  'final occurance' = c('never', 'never')
+  # row.names = c('420 ppm','500 ppm')
+  )
 kable(x=d, caption = 'Predicted occurances of key CO2 levels')
 ```
 
@@ -398,6 +399,16 @@ co2_present_month <- co2_present_raw %>%
 glimpse(co2_present)
 glimpse(co2_present_month)
 ```
+```{r mingxis weekly load}
+library(zoo)
+co2_present_raw=read.csv("https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv",skip=51)
+co2_present <- co2_present_raw %>% 
+  mutate(time_index=lubridate::make_date(year,month,day)) %>% 
+  dplyr::select(time_index,average) %>%
+  as_tsibble(index = time_index) %>%
+  mutate(average =replace(average,average<=-999,NA)) %>%
+  mutate(average = na.approx(average))
+```
 
 ```{r   warning=FALSE, echo=FALSE, fig.align='center', fig.height=4, fig.width=10 }
 # Get the overall CO2 values
@@ -420,11 +431,40 @@ acf(value, col = "black", main = "Fig 22. ACF of CO2")
 hist(value, main = "Fig 23. CO2 Distribution",
      ylab = "Frequency", xlab = "CO2")
 ```
+
+```{r ggplot version so that x axis shows time}
+p1 <- autoplot(co2_present) +
+  ggtitle("Fig.20 Atmospheric CO2 concentration\n monthly average, parts per million (ppm) ") +
+  xlab(NULL) + ylab(NULL)+ 
+  theme(text = element_text(size = 8)) 
+
+p2 <- co2_present %>% index_by(year = lubridate::year(time_index)) %>%
+  summarise(annual_avg = mean(value)) %>%
+  mutate(annual_growth = (annual_avg / lag(annual_avg, 1) - 1) * 100) %>%
+  autoplot(.vars = annual_growth) +
+  xlab(NULL) + ylab(NULL) +
+  ggtitle("Fig.2 Annual growth rate of concentration, %")+ 
+  theme(text = element_text(size = 8)) 
+p2 <- co2_present %>% PACF(value) %>% autoplot()+
+  ggtitle("Fig.3 ACF of CO2 concentration")+ 
+  theme(text = element_text(size = 8)) 
+p3 <- co2_present %>% ACF(value) %>% autoplot()+
+  ggtitle("Fig.3 ACF of CO2 concentration")+ 
+  theme(text = element_text(size = 8)) 
+p4 <- co2_present %>% ggplot() + 
+  geom_histogram(aes(average))+
+  ggtitle("Fig.4 Histogram")
+
+(p1|p2)/(p3|p4)
+```
+
 The CO2 levels have continued to grow since 1997, but the growth has not been dramatic. Fig. 20 The time series plot shows that the CO2 levels have increased at a steady rate, with no major spikes or dips.
 
 The most notable difference between the CO2 levels in 1997 and now is the distribution of the data. In 1997, the distribution was almost bimodal, meaning that there were two distinct peaks in the data. The distribution in Fig 22. shows more heavy-tailed pattern, meaning that there are more values at the high end of the distribution. This further suggests that there are more extreme CO2 levels now than there were in 1997.
 
 ## Compare linear model forecasts against realized CO2
+
+## I'd recommend starting the forecast in 1998 
 ```{r, warning=FALSE, echo=FALSE, fig.align='center', fig.height=4, fig.width=10}
 
 if (!require("fabletools")) {
@@ -432,11 +472,15 @@ if (!require("fabletools")) {
 }
 
 co2_df <- tsibble::as_tsibble(co2) 
+
+# the cubic model from part 2a
 co2_df  %>%
   model(TSLM(value ~ trend() + I(trend()^2) + I(trend()^3) + 
                season())) -> co2_full_trend_fit
 
+# initial code
 fc_co2_2020 <- fabletools::forecast(co2_full_trend_fit, h=276)
+
 
 # Create the forecast
 forecast <- append(rep(NA, length=nrow(co2_present_month)-nrow(fc_co2_2020)),
@@ -453,6 +497,21 @@ lm_vs_actuals %>%
   labs(y = 'CO2 Level', x = '', title = 'Fig. 23 Linear Model Forecast vs Realized CO2') 
 
 
+# denny edit, to review. I started in 1998 instead of 2000
+fc_co2_1998 <- fabletools::forecast(co2_full_trend_fit, h=(2023-1998)*12)
+# Create the forecast
+forecast <- append(rep(NA, length=nrow(co2_present_month)-nrow(fc_co2_1998)),
+                   fc_co2_1998$.mean)
+# Create a data frame with the actuals and forecast
+data.frame(time_index = co2_present_month$time_index, Actuals = co2_present_month$average, 
+           Forecast = forecast) %>%
+  pivot_longer(cols=c('Actuals', 'Forecast')) -> lm_vs_actuals
+
+# Plot the actuals and forecast
+lm_vs_actuals %>%
+  ggplot(aes(x = time_index, y = value, color = name)) +
+  geom_line() + 
+  labs(y = 'CO2 Level', x = '', title = 'Fig. 23 Linear Model Forecast vs Realized CO2') 
 ```
 
 
@@ -467,12 +526,12 @@ if (!require("fabletools")) {
 
 co2_df <- tsibble::as_tsibble(co2) 
 
-model.aicc <- co2_df %>%
-  model(ARIMA(value ~ 0 + pdq(0:10, 1, 0:10) + PDQ(0:10, 1, 0:10),
-                       ic="aicc", stepwise=F, greedy=F))
+model.bic <- co2_df %>%
+  model(ARIMA(value ~ 0 + pdq(0:10, 0:2, 0:10) + PDQ(0:10, 0:2, 0:10),
+                       ic="bic", stepwise=F, greedy=F))
 
 
-fc_co2_2022 <- fabletools::forecast(model.aicc, h=276)
+fc_co2_2022 <- fabletools::forecast(model.bic, h=(2023-1998)*12)
 
 
 forecast <- append(rep(NA, length=nrow(co2_present_month)-nrow(fc_co2_2022)),
