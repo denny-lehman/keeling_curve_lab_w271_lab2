@@ -15,9 +15,9 @@ abstract: |
 
 # Introduction
 
-We all know the debate about global warming and its connection to human activites. But to study this topic in a scietific way, we need reliable data. The Keeling Curve is a milestone in this aspect. It shows the ongoing increase in atmospheric carbon dioxide (CO2) concentrations over time. It is named after Charles David Keeling, the scientist who initiated and maintained the measurements. Charles David Keeling began monitoring atmospheric CO2 levels in 1958 at the Mauna Loa Observatory in Hawaii. He chose this location because it is remote and far from major sources of pollution, providing an ideal site to measure baseline CO2 concentrations. The Keeling Curve graphically represents the seasonal variations in atmospheric CO2 concentrations, as well as the long-term increasing trend. Keeling believes the seasonal pattern is a result of the Earth's vegetation absorbing CO2 during the growing season and releasing it during the dormant period, while the trend is primarily driven by human activities, particularly the burning of fossil fuels such as coal, oil, and natural gas, which release large amounts of CO2 into the atmosphere. The Keeling Curve is an important tool for scientists, policymakers, and the general public to understand the impact of human activities on the Earth's climate. It serves as a stark reminder of the need to reduce greenhouse gas emissions and address the causes and consequences of climate change.
+We all know the debate about global warming and its connection to human activites. But to study this topic in a scietific way, we need reliable data. The Keeling Curve is a milestone in this aspect. It shows the ongoing increase in atmospheric carbon dioxide (CO2) concentrations over time. It is named after Charles David Keeling, the scientist who initiated and maintained the measurements. Keeling began monitoring atmospheric CO2 levels in 1958 at the Mauna Loa Observatory in Hawaii. He chose this location because it is remote and far from major sources of pollution, providing an ideal site to measure baseline CO2 concentrations. The Keeling Curve graphically represents the seasonal variations in atmospheric CO2 concentrations, as well as the long-term increasing trend. Keeling believes the seasonal pattern is a result of the Earth's vegetation absorbing CO2 during the growing season and releasing it during the dormant period, while the trend is primarily driven by human activities, particularly the burning of fossil fuels such as coal, oil, and natural gas, which release large amounts of CO2 into the atmosphere. The Keeling Curve is an important tool for scientists, policymakers, and the general public to understand the impact of human activities on the Earth's climate. It serves as a stark reminder of the need to reduce greenhouse gas emissions and address the causes and consequences of climate change.
 
-Our research is based on the data from the Keeling Curve above. We first build model based on data till 1997 and make long-term predictions to the present. Then we combine the actual data with our prediction and discuss the implication of this comparison.
+Our research is based on the data from the Keeling Curve above. We first build a model based on data from 1959 to 1997 and make long-term predictions to the present. Then we combine the actual data with our prediction and discuss the implication of this comparison.
 
 # Report from the Point of View of 1997 
 
@@ -86,7 +86,7 @@ kable(test_results,row.names=TRUE,caption = "KPSS test of orignal and 1st differ
 ```
 
 
-Another feature of the data is its robust seasonal pattern, with the peak in May and the bottom in October almost every year (see Fig.5). This seasonality can also be seen in Fig.4. Keeling believes it was the result of plant photosynthesis.
+Another feature of the data is its robust seasonal pattern, with the peak in May and the bottom in October almost every year (see Fig.5). This seasonality can also be seen in Fig.4. Keeling believes it was the result of plant photosynthesis absorbing CO2 from the atmosphere.
 
 Fig.4 is the histogram of the remaining or irregular components after removing the trend and the seasonal components from the data with STL^[Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33.]. It looks like a normal distribution without obvious outliers.  
 
@@ -123,7 +123,7 @@ p6 <- co2_ts %>% model(STL(value ~ trend(window = 120) + season(window = "period
 
 ## Linear model
 
-Before building the model, we need to consider whether the data need a log transformation. Normally a log transformation is needed when the data shows exponential growth or the variance expands or shrinks over time. From Fig.1 and Fig.2 we can see the slope or the growth rate of the data is stable, which suggests the growth is more close to linear instead of exponential. Also, Fig.5 shows the difference between the annual high and the annual low almost remained the same over the years, suggesting the variance is nearly constant. Therefore, the log transformation is not necessary. We can first fit the original data with a linear time trend model as:
+Before building the model, we need to consider whether the data need a log transformation. Normally, a log transformation is required when the data shows exponential growth or the variance expands or shrinks over time. From Fig.1 and Fig.2 we can see the slope or the growth rate of the data is stable, which suggests the growth is more close to linear instead of exponential. Also, Fig.5 shows the difference between the annual high and the annual low almost remained the same over the years, suggesting the variance is nearly constant. Therefore, the log transformation is not necessary. We can first fit the original data with a linear time trend model as:
 
 \begin{equation}
 \label{eq:one}
@@ -137,7 +137,7 @@ which gives the parameters as:
 \text{CO}_{2} = 311.5 + 0.11t + \epsilon_{t}
 \end{equation}
 
-This linear trend model implies that the $CO_2$ concentration increased by 0.11/month on average from 1959 to 1997. However, the residual plots in Fig.5 to Fig.7 suggest this simple linear trend model is not adequate in the following two aspects. 
+This linear trend model implies that the $CO_2$ concentration increased by 0.11 ppm/month on average from 1959 to 1997. However, the residual plots in Fig.5 to Fig.7 suggest this simple linear trend model is not adequate in the following two aspects. 
 
 First, the mean of the residual forms a "U" shape over time, suggesting a quadratic or higher-order polynomial time trend model may be more appropriate. For instance, the residual from a quadratic time trend model shows a more constant mean over time, as shown in Fig.8.
 
@@ -166,7 +166,7 @@ p8 <-
 (p5 | p6) / (p7 | p8)
 ```
 
-In addition, Fig.6, the ACF plot, indicates strong seasonal patterns exist in the residuals, suggesting we should consider seasonal factors in the model, and one solution is to include 11 dummy variables in the model to indicate the 12 months.
+In addition, the ACF plot in Fig.6 indicates strong seasonal patterns exist in the residuals, suggesting we should consider seasonal factors in the model. One solution is to include 11 dummy variables in the model to indicate the 12 months.
 
 Based on the two points above, we compare the 2 candidates: a quadratic time trend model and a cubic one, as below.
 
@@ -179,7 +179,7 @@ Based on the two points above, we compare the 2 candidates: a quadratic time tre
 \text{Cubic time trend: CO}_{2} = \alpha + \beta_0t + \beta_1t^2 + \beta_2t^3 + \sum_{i=1}^{11} \gamma_i Month_{it} + \epsilon_{t}
 \end{equation} 
 
-We use the data before 1991 as the training set and the rest as the validation set (similar to an 80-20 split). Our final choice of the model depends on the combination of 2 guidelines: 1) the information criterion (AICc, BIC) from the model fitting process and 2) the root mean square error (RMSE) of predictions on the validation set, which are listed in Table.1. Both information criterion (AICc, BIC) and RMSE favor the cubic model. Therefore, the cubic time trend model becomes our final choice. Its details are in the Appendix. We plot the forecast of this model till 2020 in Fig.7. One thing to note is that because the coefficient of the cubic term is negative, the predicted values will eventually begin to decrease when predicting the far future. In fact, we can see from Fig.7 that the predicted values have almost topped. If it doesn't make sense, we should confine our predicting interval to the near term.
+We use the data before 1991 as the training set and the rest as the validation set (similar to an 80-20 split). Our final choice of the model depends on the combination of 2 guidelines: 1) the information criterion (AICc, BIC) from the model fitting process and 2) the root mean square error (RMSE) of predictions on the validation set, which are listed in Table.1. Both information criterion (AICc, BIC) and RMSE favor the cubic model. Therefore, the cubic time trend model becomes our final choice. Its details are in the Appendix. We plot the forecast of this model until 2020 in Fig.7. One thing to note is that because the coefficient of the cubic term is negative, the predicted values will eventually begin to decrease when predicting the far future. In fact, we can see from Fig.7 that the predicted values have almost topped. This may be inappropriate extrapolation behavior. In that case, we should confine our predicting interval to the near term.
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE,fig.height=2}
 co2_training = co2_ts %>% filter(lubridate::year(index) < 1991)
@@ -210,9 +210,9 @@ We will use the Box Jenkins process to find the best ARIMA model via the followi
 
 - Determine the appropriate model from EDA
 - Find the best parameters
-- Examine the residuals using dianostic plots and statistical tests
+- Examine the residuals using diagnostic plots and statistical tests
 
-The EDA revealed that the time series of CO2 had both autoregressive and seasonal components. Considering the ACF plot's low slow decay of autocorrelation, we expect differencing to be a key part of any time series model. In addition, we predict that the model will require seasonal components to model the 12 month cycle of seasonal variations. Therefore, we expect a seasonal arima model (SARIMA) with differencing to be best.
+The EDA revealed that the time series of CO2 had both autoregressive and seasonal components. Considering the ACF plot's low slow decay of autocorrelation, we expect differencing to be a key part of any time series model. In addition, we predict that the model will require seasonal components to model the 12 month cycle of seasonal variations. Therefore, we expect a seasonal arima model (SARIMA) with differencing and seasonality terms to be best.
 
 In this section, we fit the best SARIMA model and analyze the results. We choose BIC as our information criteria for model selection. Simplicity is a desirable property in data science models to help explain the relationship between variables. We choose BIC as our information criteria because it penalizes complex models more than AIC or AICc and therefore selects more simple models with fewer parameters as the best ones. Lower BIC scores are better. 
 
@@ -228,7 +228,7 @@ model.bic %>%
   report()
 
 ```
-After searching over seasonal and non-seasonal P,D, and Q variables, the best model was an ARIMA(0,1,1)(1,1,2)[12] model with BIC score of 201.78. Next, we evaluate the model via diagnostic plots and statistical tests, concluding the Box Jenkins process.
+After searching over seasonal and non-seasonal P, D, and Q variables, the best model was an ARIMA(0,1,1)(1,1,2)[12] model with BIC score of 201.78. Next, we evaluate the model via diagnostic plots and statistical tests, concluding the Box Jenkins process.
 
  
 ```{r diagnostic plots, echo=FALSE, warning=FALSE, fig.height=5}
@@ -279,11 +279,11 @@ p12 <- model.bic %>%
   theme(text = element_text(size = 8)) 
 
 ```
-We test the residuals for stationarity with the augmented dickey fuller test. The augmented dickey fuller test has the null hypothesis that the data is non stationary. With a p-value of `r dickey$p.value`, we reject the null hypothesis because there is enough evidence to say that the residuals are stationary.
+We test the residuals for stationarity with the Augmented Dickey Fuller test (ADF). The ADF test has the null hypothesis that the data is non stationary. With a p-value of `r dickey$p.value`, we reject the null hypothesis because there is enough evidence to say that the residuals are stationary.
 
 The Box-Ljung test has the null hypothesis that the data presented is independently distributed. When presented with the residuals of the ARIMA model, the test had p-values of `r round(box_1$p.value,3)` and `r round(box_10$p.value,3)` for lag =1 and lag = 10 respectively. For both of those lags, we fail to reject the null hypothesis and conclude that the data is independently distributed.
 
-Finally, we visually inspect the histogram of the residuals and the qq plot to see if the residuals appear normally distributed. The histogram has the guassian bell shaped curve with a few outliers. The qq plot shows that the data matches up with the normal distribution's quantiles. With these plots, we can confidently say that the residuals are visibly normally distributed. 
+Finally, we visually inspect the histogram of the residuals (Fig.11) and the QQ plot (Fig.12) to see if the residuals appear normally distributed. The histogram has the Gaussian bell shaped curve with a few outliers. The QQ plot shows that the data matches up with the normal distribution's quantiles. With these plots, we can confidently say that the residuals are visually normally distributed. 
 
 To conclude, both diagnostic plots and statistical tests show that the residuals are stationary with mean 0, constant variance, and no autoregression or seasonality. We forecast our model to the year 2022 (Fig 13).
 
@@ -299,25 +299,38 @@ p12 | p13
 ```
 
 ## Atmospheric CO2 growth Forecast
+We use our model to make predictions on future levels of CO2, specifically 420 and 500 ppm. We will investigate the earliest, best guess, and latest ocurrance of these values. The earliest guess will be based on the first time the upper 95% confidence interval (CI) reaches the specified level and the latest guess will be the last time the value is within the lower 95% CI. The best guess will be the point estimate (mean) of the forecast. 
 
 ```{r forecast, echo=FALSE, warning=FALSE, message=FALSE}
 fc_arima <- model.bic %>% forecast(h=1900)
 fc <-fc_arima %>% mutate(upper=quantile(value,0.95),lower=quantile(value,0.05))
 first_420 <- fc %>% filter(upper>=420)
 first_420 <- min(first_420$index)
+mean_420 <- fc %>% filter(.mean > 420)
+mean_420 <- min(mean_420$index)
 last_420 <- fc %>% filter(lower < 420)
 last_420 <- max(last_420$index)
 
 first_500 <- fc %>% filter(upper >= 500)
 first_500 <- min(first_500$index)
+mean_500 <- fc %>% filter(.mean > 500)
+mean_500 <- min(mean_500$index)
 last_500 <- fc %>% filter(lower<=500)
 last_500 <- max(last_500$index)
+
+
+d <- data.frame(
+  'CO2 ppm level' = c('420 ppm', '500 ppm'),
+  'earliest occurance' = c(first_420,first_500), 
+  'point_estimate' = c(mean_420, mean_500),
+  'final occurance' = c('never', 'never'),
+  row.names = c('420 ppm','500 ppm'))
+kable(x=d, caption = 'Predicted occurances of key CO2 levels')
 ```
 
+Based on our model, the first time we could potentially see CO2 at 420 ppm is `r as.Date(first_420)` because that is when the upper 95% confidence interval (CI) of our model first reaches 420 ppm. The model's lower 95% CI hovers around 420, so there is no predicted final time. Knowing what we know today in 2023, 419 ppm was reached on May 2021, which was *before* our model's earliest guess. CO2 levels have risen faster than our model anticipated. This is a precursor to the analysis provided later in this paper. The first time our model predicts the earth to reach 500 ppm CO2 on `r as.Date(first_500)`, which is when the 95% CI reaches 500 ppm.  The model's lower 95% CI never reaches 500, so there is no predicted final time. 
 
-Based on our model, the first time we could potentially see CO2 in 420 ppm is `r as.Date(first_420)` because that is when the upper 95% confidence interval (CI) of our model first reaches 420 ppm. The model's lower 95% CI hovers around 420, so there is no predicted final time. *Add why this level of CO2 is important*
-
-The first time our model predicts the earth to reach 500 ppm CO2 on `r as.Date(first_500)`, which is when the 95% CI reaches 500 ppm.  The model's lower 95% CI never reaches 500, so there is no predicted final time. Below is the prediction of our model to the year 2100. Confidence intervals are shown fanning outward. The error of the predictions compounds overtime which expands the confidence intervals into a funnel shape. The farther out in time from the recorded data points, the less accurate the prediction.
+Below is the prediction of our model to the year 2100. Confidence intervals are shown fanning outward. The error of the predictions compounds overtime which expands the confidence intervals into a funnel shape. The farther out in time from the recorded data points, the less accurate the prediction.
 
 
 ```{r forecast plot, echo=FALSE, warning=FALSE, message=FALSE, fig.height=3}
