@@ -376,6 +376,7 @@ co2_present <- co2_present_raw %>%
 
 
 co2_present_raw=read.csv(co2_monthly_url,skip=56)
+
 co2_present_month <- co2_present_raw %>% 
   mutate(time_index=make_date(year,month)) %>% 
   dplyr::select(time_index,average) %>%
