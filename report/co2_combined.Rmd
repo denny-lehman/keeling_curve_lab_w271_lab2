@@ -411,16 +411,16 @@ p1 <- autoplot(co2_present) +
   xlab(NULL) + ylab(NULL)+ 
   theme(text = element_text(size = 8)) 
 p2 <- co2_present %>% index_by(year = lubridate::year(time_index)) %>%
-  summarise(annual_avg = mean(value)) %>%
+  summarise(annual_avg = mean(average)) %>%
   mutate(annual_growth = (annual_avg / lag(annual_avg, 1) - 1) * 100) %>%
   autoplot(.vars = annual_growth) +
   xlab(NULL) + ylab(NULL) +
   ggtitle("Fig.21 Annual growth rate of concentration, %")+ 
   theme(text = element_text(size = 8)) 
-p2 <- co2_present %>% PACF(value) %>% autoplot()+
+p2 <- co2_present %>% PACF(average) %>% autoplot()+
   ggtitle("Fig.22 ACF of CO2 concentration")+ 
   theme(text = element_text(size = 8)) 
-p3 <- co2_present %>% ACF(value) %>% autoplot()+
+p3 <- co2_present %>% ACF(average) %>% autoplot()+
   ggtitle("Fig.23 ACF of CO2 concentration")+ 
   theme(text = element_text(size = 8)) 
 p4 <- co2_present %>% ggplot() + 
@@ -438,10 +438,6 @@ The most notable difference between the CO2 levels in 1997 and now is the distri
 
 ## I'd recommend starting the forecast in 1998 
 ```{r, warning=FALSE, echo=FALSE, fig.align='center', fig.height=4, fig.width=10}
-
-if (!require("fabletools")) {
-  install.packages("fabletools")
-}
 
 co2_df <- tsibble::as_tsibble(co2) 
 
@@ -476,10 +472,6 @@ The linear model in (Fig.25) forecast may not have capture the trend of the real
 ## 3b.Compare ARIMA models forecasts against realized CO2 
 ```{r warning=FALSE, echo=FALSE, fig.align='center', fig.height=4, fig.width=10}
 
-if (!require("fabletools")) {
-  install.packages("fabletools")
-}
-
 co2_df <- tsibble::as_tsibble(co2) 
 
 model.bic <- co2_df %>%
@@ -500,8 +492,6 @@ arima_vs_actuals %>%
   ggplot(aes(x = time_index, y = value, color = name)) +
   geom_line() + 
   labs(y = 'CO2 Level', x = '', title = 'Fig. 26 ARIMA Forecast vs Realized CO2') 
-
-arima_vs_actuals %>% filter(name == 'Forecast' )
 ```
 
 The ARIMA forecast(Fig.26) is much closer to the realized CO2 levels than the Linear Model forecast. The only difference observed, is that the ARIMA model appears to have forecasted a linear trend, while the realized CO2 levels followed an almost exponential growth.
@@ -579,7 +569,7 @@ train_data_seasonally_adjusted <- seasonally_adjusted_STL[0: (rows-24),]
 
 model.bic_monthlyyearly <-train_data_seasonally_adjusted %>%
   model(fable::ARIMA(season_adjust ~ 0:1 + pdq(0:3,0:2,0:3) + 
-                       PDQ(0:10,0:3,0:10, period=12),
+                       PDQ(0:8,0:3,0:8, period=12),
                      ic="bic", stepwise=F, greedy=F))
 
 model.bic_monthlyyearly %>%
