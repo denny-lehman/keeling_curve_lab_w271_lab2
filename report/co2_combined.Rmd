@@ -347,13 +347,14 @@ autolayer(df, colour="black") +
 
 ## Introduction 
 
-In our original 1997 paper, we made several predictions on the expected level carbon emissions. Currently, we will evaluate the accuracy of those predictions using time series analysis and extrapolate from present data to make predictions about the future.
+In our original 1997 paper, we made several predictions on the expected level atmospheric CO2. Currently, we will evaluate the accuracy of those predictions using time series analysis and extrapolate from present data to make predictions about the future.
 
 
 ## Data
 
-The following code snipped outlines the pipeline to read data from Weekly and Monthly URLs.Minor transformation have be performed in order to get the data into a time series object. 
+A modern data pipeline was constructed to load both weekly and monthly CO2 data from January 1959 to June 2023. This will allow us to compare our forecasts in the previous section to the actual CO2 levels. The code for the pipeline can be found in the appendix.
 
+## MOVE CODE  TO THE APPENDIX
 
 ```{r pull data from the global monitoring laboratory}
 library(zoo)
@@ -498,7 +499,7 @@ lm_vs_actuals %>%
 
 
 # denny edit, to review. I started in 1998 instead of 2000
-fc_co2_1998 <- fabletools::forecast(co2_full_trend_fit, h=(2023-1998)*12)
+fc_co2_1998 <- fabletools::forecast(co2_full_trend_fit, h=(2023-1998)*12 +6)
 # Create the forecast
 forecast <- append(rep(NA, length=nrow(co2_present_month)-nrow(fc_co2_1998)),
                    fc_co2_1998$.mean)
@@ -531,7 +532,7 @@ model.bic <- co2_df %>%
                        ic="bic", stepwise=F, greedy=F))
 
 
-fc_co2_2022 <- fabletools::forecast(model.bic, h=(2023-1998)*12)
+fc_co2_2022 <- fabletools::forecast(model.bic, h=(2023-1998)*12 + 6)
 
 
 forecast <- append(rep(NA, length=nrow(co2_present_month)-nrow(fc_co2_2022)),
@@ -545,7 +546,7 @@ arima_vs_actuals %>%
   geom_line() + 
   labs(y = 'CO2 Level', x = '', title = 'Fig. 24 ARIMA Forecast vs Realized CO2') 
 
-
+arima_vs_actuals %>% filter(name == 'Forecast' )
 ```
 
 The ARIMA forecast(Fig.24) is much closer to the realized CO2 levels than the Linear Model forecast. The only difference observed, is that the ARIMA model appears to have forecasted a linear trend, while the realized CO2 levels followed an almost exponential growth.
