@@ -831,7 +831,7 @@ print(paste("Linear model Root Mean Squared Error (RMSE):", rmse_seasonal_yearly
 
 ```{r }
 # NON-Seasonal adjusted
-co2_present_reduced_weekly <- co2_present[c("average" ,"index")]
+co2_present_reduced_weekly <- co2_present[c("time_index" ,"average")]
 co2_present_reduced_weekly
 
 ```
@@ -839,14 +839,14 @@ co2_present_reduced_weekly
 ```{r }
 # NON-Seasonal adjusted
 co2_present_reduced_weekly <- co2_present_reduced_weekly %>%
-  mutate(yearweek = yearweek(index))
+  mutate(yearweek = yearweek(time_index))
 co2_present_reduced_weekly
 ```
 
 ```{r }
 # Assuming your tsibble object is named "selected_data"
 # NON-Seasonal adjusted
-co2_present1 %>% group_by(time_index)
+
 co2_present_reduced_weekly_group <- co2_present_reduced_weekly %>%
   group_by(yearweek) %>%
   summarize(mean_average = mean(average))
@@ -884,19 +884,11 @@ co2_present_reduced_weekly_group <- co2_present_reduced_weekly_group %>%
 
 # Extract the last two years for the test dataset
 test_data_non_season <- co2_present_reduced_weekly_group %>%
-  slice(1:96)
+  slice(1:96) %>% rename(index = yearweek)
 
 # Extract the remaining data for the training dataset
 train_data_non_season <- co2_present_reduced_weekly_group %>%
-  slice(-(1:96))
-
-test_data_non_season <- co2_present1 %>%
-  filter(time_index > lubridate::ymd('2021-06-01')) %>%
-  slice(1:96)
-
-# Extract the remaining data for the training dataset
-train_data_non_season <- co2_present_reduced_weekly_group %>%
-  slice(-(1:96))
+  slice(-(1:96))%>% rename(index = yearweek)
 
 
 # Print the train datasets
@@ -923,8 +915,8 @@ train_data_non_season <- tsibble::fill_gaps(train_data_non_season)
 
 # Developing model from non-seasonal adjusted dataset
 model.bic_weekly_ARIMA <-train_data_non_season %>%
-  model(fable::ARIMA(mean_average ~ 0:1 + pdq(0:8,0:2,0:8) + 
-                       PDQ(0:12,0:4,0:12, period=12),
+  model(fable::ARIMA(mean_average ~ 0:1 + pdq(0:4,0:2,0:4) + 
+                       PDQ(0:5,0:3,0:5, period=12),
                      ic="bic", stepwise=F, greedy=F))
 
  model.bic_weekly_ARIMA %>%
@@ -947,17 +939,16 @@ model.forecasts_ARIMA_weekly
 # Comparision of the ARIMA model prediction made in Section 2 for the period Jan 2022 to Dec 2023 with the Present actual CO2 values observed for the period Jan 2022 to Dec 2023
 # NON-Seasonal adjusted
 
-library(dplyr)
 
 # Assuming model.forecasts and co2_present_monthly are your data frames
 
 # Merge the two data frames on the 'index' column, and handle missing values with 0
-merged_df_weekly <- merge(model.forecasts_ARIMA_weekly, test_data_non_season, by = "yearweek", all.x = TRUE)
+merged_df_weekly <- merge(model.forecasts_ARIMA_weekly, test_data_non_season, by = "index", all.x = TRUE)
 # merged_df_yearly[is.na(merged_df)] <- 0  # Replace missing values with 0
 
 # Select the desired columns and rename them if needed
 selected_df_weekly <- merged_df_weekly %>%
-  select(yearweek, mean_average.y , .mean) %>%
+  select(index, mean_average.y , .mean) %>%
   rename(predicted = .mean, current_value = mean_average.y)
 
 # Print the result
