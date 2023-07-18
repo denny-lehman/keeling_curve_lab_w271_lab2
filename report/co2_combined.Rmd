@@ -530,7 +530,7 @@ Now we evaluate the accuracy for the best polynomial and ARIMA models built on t
 ## 5b. Train best models on present data
 In the previous section, we conducted exploratory data analysis to visually assess the forecast of both the linear model and ARIMA model for atmospheric C02 levels. These models captured the historic trends and patterns effectively up to a certain point 1997. However as we moved from 1997, the forecasted lines started to deviate, making it challenging to determine which model better fits the data. To quantitatively evaluate the accuracy of the models, we conducted a formal evaluation using the Root Mean Squared Error (RMSE) test. Both the ARIMA and linear models were developed using data from 1974 to 1993. We used these models to forecast the atmospheric CO2 levels until 2023. Since models were built on a monthly dataset, the predictions we obtained were also on a monthly basis for the period from 1993 to 2023. 
 
-To ensure a fair comparison of these predictions we aggregated the current dataset to a monthly level. The model performance of ARIMA model , after comparing its predictions with the current dataset, resulted in an RMSE of 51.66 On the other hand, the linear model which considered both the seasonal and trend components, had an RMSE of 14.037. It looks like that data has certain trend and pattern which are better captured by linear regression.
+To ensure a fair comparison of these predictions we aggregated the current dataset to a monthly level. On seasonally adjusted data, the model performance of ARIMA model , after comparing its predictions with the current dataset, resulted in an RMSE of 0.49 On the other hand, the linear model which considered both the seasonal and trend components, had an RMSE of 6.15. It looks like that data has certain trend and pattern which are better captured by linear regression.
 
 
 ```{r , include = FALSE , fig.height=3 }
@@ -553,9 +553,8 @@ dcmp_add %>%
 ```
 
 
-**Forecasts of Section 2 ARIMA model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
 ```{r split train and test data, include = FALSE}
-
+# **Forecasts of Section 2 ARIMA model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
 
 seasonally_adjusted_STL <- dcmp_add %>%
   components() %>%
@@ -575,9 +574,6 @@ model.bic_monthlyyearly <-train_data_seasonally_adjusted %>%
 model.bic_monthlyyearly %>%
   report()
 ```
-
-
-
 
 ```{r forecast ARMIA seasonal adjusted, include = FALSE}
 # Forecasts of Section 2 ARIMA model on Train Dataset [Jan 2022 to Dec 2023]
@@ -602,18 +598,13 @@ print(paste("ARIMA model Root Mean Squared Error (RMSE):", rmse_monthly_yearly))
 
 ```
 
-
-
-
-**Forecasts of Section 2 LINEAR model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
 ```{r train linear seasonal adjusted model, echo = FALSE }
-
+# **Forecasts of Section 2 LINEAR model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
 # LINEAR model development on Training dataset for the period Jan 1997 to Dec 2021
 train_data_seasonally_adjusted %>% 
   model(model_trend =  TSLM(season_adjust ~ trend() + season() )) -> fit_linear_season_adjusted_yeary_monthly
 
 ```
-
 
 ```{r forecast linear seasonal adjusted model, echo=FALSE}
 
@@ -641,11 +632,10 @@ print(paste("Linear model Root Mean Squared Error (RMSE):", rmse_seasonal_yearly
 
 ```
 
-### NON-Season
-
-
 ```{r train test split for non seasonal data, include=FALSE}
+# ### NON-Season
 # CO2 data Split into Train and Test Non-Seasonally Adjusted Dataset
+
 co2_present %>% 
   mutate(time_index = yearweek(time_index)) %>% # converts to 2023 W27 format
   summarize(value = mean(average)) %>%
@@ -665,8 +655,9 @@ train_data_non_season <- tsibble::fill_gaps(train_data_non_season)
 ```
 
 
-### ARIMA model development on Non-seasonally adjusted training datase
 ```{r train ARIMA non-seasonal model, include = FALSE}
+# ### ARIMA model development on Non-seasonally adjusted training datase
+
 # Developing model from non-seasonal adjusted dataset
 model.bic_weekly_ARIMA <-train_data_non_season %>%
   model(fable::ARIMA(value ~ 0:1 + pdq(0:4,0:2,0:4) + 
@@ -740,9 +731,6 @@ print(paste("Root Mean Squared Error (RMSE):", rmse_weekly_non_seasonal))
 ```
 
 ### (3 points) Task Part 6b: How bad could it get?
-**With the non-seasonally adjusted data series, generate predictions for when atmospheric CO2 is expected to be at 420 ppm and 500 ppm levels for the first and final times (consider prediction intervals as well as point estimates in your answer). Generate a prediction for atmospheric CO2 levels in the year 2122. How confident are you that these will be accurate predictions?.Generate a prediction for atmospheric CO2 levels in the year 2100. How confident are you that these will be accurate predictions?**
-
-**Observations**
 The best model we derived from Part 5b was the ARIMA model. Utilizing this model, we projected CO2 levels on the original weekly dataset which is a non-seasonally adjusted data. Our analysis indicated that CO2 levels are predicted to reach 420 ppm in 2023, but are not expected to reach 500 ppm. We observed that in the year 3075, the upper boundary touched 500 ppm, but with low confidence. These predictions can be influenced by the data's aggregation level. For instance, weekly aggregated data may yield more vague predictions because the number of datapoints are larger resulting in higher noise and variability in data, whereas monthly aggregated data can provide slightly improved predictions. On examining the weekly level aggregated data, we noticed that the prediction boundary intervals curve downwards, which is not ideal because it captures too much noise and adds variability. However, with monthly level data, predictions are comparatively better, and the boundary intervals are narrower and upward. According to our analysis, the 500 ppm threshold is projected to be reached by the year 2050.
 
 The predictions for 2122 is 425 with boundary limits of 310-555 in the weekly aggregated dataset. However, in the monthly aggregated dataset, the prediction for 2122 is 650 with narrower boundary levels.
