@@ -60,6 +60,7 @@ library(forecast)
 library(tseries) # for adf.test
 library(stargazer)
 library(knitr) # for kable
+library(zoo)
 
 
 theme_set(theme_minimal())
@@ -263,14 +264,6 @@ box_10 <- Box.test(resid.ts, lag = 10, type = "Ljung-Box")
 # Box.test(resid.ts, lag = 1, type = "Ljung-Box")
 # Box.test(resid.ts, lag = 10, type = "Ljung-Box")
 
-# qqplot on residuals, histogram on residuals
-# p1 <- model.bic %>%
-#   augment() %>%
-#   select(.resid) %>% 
-#   ggplot() +
-#   geom_histogram(aes(x=.resid))+ ggtitle("Fig.16 Histogram plot of residuals from ARIMA") +
-#   theme(text = element_text(size = 8)) 
-
 p12 <- model.bic %>%
   augment() %>%
   select(.resid) %>% 
@@ -360,8 +353,7 @@ A modern data pipeline was constructed to load both weekly and monthly CO2 data 
 ## MOVE CODE  TO THE APPENDIX
 
 
-```{r weekly load}
-library(zoo)
+```{r weekly load, echo=FALSE}
 co2_present_raw=read.csv("https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv",skip=51)
 co2_present <- co2_present_raw %>% 
   mutate(time_index=lubridate::make_date(year,month,day)) %>% 
@@ -371,15 +363,9 @@ co2_present <- co2_present_raw %>%
   mutate(average = na.approx(average))
 ```
 
-```{r monthly data load}
-library(zoo)
-if (!require("lubridate")) {
-  install.packages("lubridate")
-}
+```{r monthly load}
 
 co2_present_monthly_raw <- "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv"
-```
-```{r monthly load}
 
 co2_present_raw=read.csv(co2_present_monthly_raw,skip=56)
 
@@ -398,11 +384,9 @@ glimpse(co2_present_month)
 
 
 
+# ADJUST FIGURE SIZE
 
-
-```{r ggplot version so that x axis shows time}
-
-library(ggplot2)
+```{r ggplot version so that x axis shows time, echo=FALSE}
 
 p1 <- autoplot(co2_present) +
   ggtitle("Fig.20 Atmospheric CO2 concentration\n monthly average, parts per million (ppm) ") +
@@ -863,4 +847,23 @@ print(value_500ppm)
 ```{r echo =FALSE}
 # ## Confidence interval
 model.forecasts_ARIMA_weekly_confidence_interval <-model.forecasts_ARIMA_weekly %>% mutate(upper=quantile(.mean,0.95),lower=quantile(.mean,0.05))
+```
+
+
+\appendix
+\section{Appendix: Model Robustness}
+
+
+While the most plausible model that we estimate is reported in the main, "Modeling" section, in this appendix to the article we examine alternative models. Here, our intent is to provide a skeptic that does not accept our assessment of this model as an ARIMA of order (1,2,3) an understanding of model forecasts under alternative scenarios. 
+
+Modern data pipeline code:
+
+```{r weekly load appendix}
+co2_present_raw=read.csv("https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv",skip=51)
+co2_present <- co2_present_raw %>% 
+  mutate(time_index=lubridate::make_date(year,month,day)) %>% 
+  dplyr::select(time_index,average) %>%
+  as_tsibble(index = time_index) %>%
+  mutate(average =replace(average,average<=-999,NA)) %>%
+  mutate(average = na.approx(average))
 ```
