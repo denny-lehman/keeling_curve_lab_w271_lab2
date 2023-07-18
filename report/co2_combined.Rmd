@@ -487,7 +487,7 @@ The ARIMA forecast(Fig.26) is much closer to the realized CO2 levels than the Li
 ```{r}
 co2_present_monthly<-co2_present %>% index_by(index=yearmonth(time_index))%>%
   summarise(value=mean(average))
-co2_present_monthly_since1998 <-co2_present_monthly%>%filter(year(index)>1997)
+co2_present_monthly_since1998 <-co2_present_monthly%>%filter(lubridate::year(index)>1997)
 fc_poly_new <- co2_ts %>%
   model(TSLM(value ~ trend() + I(trend() ^ 2) + I(trend() ^ 3) +
                season())) %>%forecast(h=(2022-1997)*12+7)
