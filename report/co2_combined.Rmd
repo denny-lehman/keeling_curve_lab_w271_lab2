@@ -726,7 +726,6 @@ train_data_non_season %>%
 test.size = (2024- 2022) * 4 * 12 # = 96
 
 model.forecasts_weekly_non_seasonal <-forecast(fit_linear_NON_season_weekly, h=test.size)
-model.forecasts_weekly_non_seasonal  
 # Merge the two data frames on the 'index' column, and handle missing values with 0
 merged_df_weekly_non_seasonal <- merge(model.forecasts_weekly_non_seasonal, test_data_non_season, by = "time_index", all.x = TRUE)
 # merged_df_yearly[is.na(merged_df)] <- 0  # Replace missing values with 0
