@@ -507,10 +507,14 @@ Now we evaluate the accuracy for the best polynomial and ARIMA models built on t
 
 
 ## 5b. Train best models on present data
-
 In the previous section, we performed a comprehensive evaluation of models trained on 1997 dataset with the focus on long term forecasting 1998 to 2023 and got high residual error. However, for long term forecasting, utilizing seasonally adjusted data becomes more appropriate. To accomplish this we applied the STL method, which effectively decomposes the time series and provides us with seasonal adjusted data. This dataset was subsequently split into training (1997 to 2021) and test (2021 to 2023) sets to assess model performance.
 
-We created both linear regression and ARIMA models and chose the best versions for both seasonally-adjusted and nonseasonally adjusted data. 
+The ARIMA models were trained on the training dataset and evaluated on the test dataset, yielding an RMSE value of 0.83. Similarly we conducted a parallel analysis on the non seasonal adjusted data, resulting in an RMSE value of 0.11. Interestingly, the non-seasonally adjusted ARIMA model showcased slightly better performance than its seasonally adjusted counterpart.
+
+During the training process, we employed a grid search, exploring various parameter combinations (p, d, q) ranging from (0:8, 0:2, 0:8) and seasonal parameter combinations (P, D, Q) spanning from (0:12, 0:4, 0:12). The final selected ARIMA model was (0,1,1)(4,0,0)[12], indicating the implementation of differencing once for stationarity and incorporating one lag of forecast errors. This model demonstrated improved performance on the out-of-sample test dataset compared to the ARIMA model built in the previous section. This improvement in predictive capabilities can be attributed to the inclusion of more recent training data from 1997 to 2020, which allowed the model to forecast the immediate future (2021 to 2023) more accurately. Also, the ARIMA model performs well both on in-sample and out-sample, indicating that model is flexible and able to predict accurately and not overfitting.
+Additionally, we compared the non-seasonally adjusted ARIMA model with a polynomial linear model trained on seasonally adjusted data. The RMSE value for the polynomial linear model was 1.7, whereas the non-seasonally adjusted ARIMA model achieved an RMSE of 0.14. The non-seasonally adjusted ARIMA model showcased superior performance in predicting the immediate future and effectively capturing the seasonal pattern. Also, as seen from the EDA, the seasonal pattern is stable in this data. Conversely, the polynomial linear model on seasonally adjusted data is better for predicting long-term trends and not as effective in capturing seasonal variations. Overall, our analysis highlighted the significance of selecting the appropriate modeling approach based on the forecasting requirements and the nature of the data.
+
+
 
 ```{r seasonal decomposition, include = FALSE }
 # Extracting the Trend, Seasonal, and Remainder components from the dataset after applying seasonal adjustment through # STL for the period Jan 1997 to Dec 2021
@@ -680,15 +684,6 @@ kable(
 
 
 
-The ARIMA models were trained on the training dataset and evaluated on the test dataset, yielding an RMSE value of 0.83. Similarly we conducted a parallel analysis on the non seasonal adjusted data, resulting in an RMSE value of 0.11. Interestingly, the non-seasonally adjusted ARIMA model showcased slightly better performance than its seasonally adjusted counterpart.
-
-During the training process, we employed a grid search, exploring various parameter combinations (p, d, q) ranging from (0:8, 0:2, 0:8) and seasonal parameter combinations (P, D, Q) spanning from (0:12, 0:4, 0:12). The final selected ARIMA model was (0,1,1)(4,0,0)[12], indicating the implementation of differencing once for stationarity and incorporating one lag of forecast errors. This model demonstrated improved performance on the out-of-sample test dataset compared to the ARIMA model built in the previous section. This improvement in predictive capabilities can be attributed to the inclusion of more recent training data from 1997 to 2020, which allowed the model to forecast the immediate future (2021 to 2023) more accurately. Also, the ARIMA model performs well both on in-sample and out-sample, indicating that model is flexible and able to predict accurately and not overfitting.
-Additionally, we compared the non-seasonally adjusted ARIMA model with a polynomial linear model trained on seasonally adjusted data. The RMSE value for the polynomial linear model was 1.7, whereas the non-seasonally adjusted ARIMA model achieved an RMSE of 0.14. The non-seasonally adjusted ARIMA model showcased superior performance in predicting the immediate future and effectively capturing the seasonal pattern. Also, as seen from the EDA, the seasonal pattern is stable in this data. Conversely, the polynomial linear model on seasonally adjusted data is better for predicting long-term trends and not as effective in capturing seasonal variations. Overall, our analysis highlighted the significance of selecting the appropriate modeling approach based on the forecasting requirements and the nature of the data.
-
-
-In the previous section, we conducted exploratory data analysis to visually assess the forecast of both the linear model and ARIMA model for atmospheric C02 levels. These models captured the historic trends and patterns effectively up to a certain point 1997. However as we moved from 1997, the forecasted lines started to deviate, making it challenging to determine which model better fits the data. To quantitatively evaluate the accuracy of the models, we conducted a formal evaluation using the Root Mean Squared Error (RMSE) test. Both the ARIMA and linear models were developed using data from 1974 to 1993. We used these models to forecast the atmospheric CO2 levels until 2023. Since models were built on a monthly dataset, the predictions we obtained were also on a monthly basis for the period from 1993 to 2023. 
-
-To ensure a fair comparison of these predictions we aggregated the current dataset to a monthly level. The model performance of ARIMA model , after comparing its predictions with the current dataset, resulted in an RMSE of 51.66 On the other hand, the linear model which considered both the seasonal and trend components, had an RMSE of 14.037. It looks like that data has certain trend and pattern which are better captured by linear regression.
 
 
 ### (3 points) Task Part 6b: How bad could it get?
