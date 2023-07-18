@@ -526,7 +526,6 @@ Now we evaluate the accuracy for the best polynomial and ARIMA models built on t
 
 
 ## 5b. Train best models on present data
-
 In the previous section, we performed a comprehensive evaluation of models trained on 1997 dataset with the focus on long term forecasting 1998 to 2023 and got high residual error. However, for long term forecasting, utilizing seasonally adjusted data becomes more appropriate. To accomplish this we applied the STL method, which effectively decomposes the time series and provides us with seasonal adjusted data. This dataset was subsequently split into training (1997 to 2021) and test (2021 to 2023) sets to assess model performance.
 
 We created both linear regression and ARIMA models and chose the best versions for both seasonally-adjusted and nonseasonally adjusted data. 
@@ -537,12 +536,15 @@ dcmp_add <- co2_present_monthly %>%
   model(stl = STL(value))
 ```
 
-```{r split train and test data seasonally adjusted, include = FALSE}
+
+```{r split train and test data, include = FALSE}
+# **Forecasts of Section 2 ARIMA model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
+
 seasonally_adjusted_STL <- dcmp_add %>%
   components() %>%
   as_tsibble() %>%
   select(index, season_adjust)
-#seasonally_adjusted_STL[nrow(seasonally_adjusted_STL - 24): nrow(seasonally_adjusted_STL),]
+
 rows <- nrow(seasonally_adjusted_STL)
 test_data_seasonally_adjusted <- seasonally_adjusted_STL[(rows-24): rows,]
 train_data_seasonally_adjusted <- seasonally_adjusted_STL[0: (rows-24),]
@@ -580,9 +582,6 @@ model.bic_monthlyyearly %>%
 
 ```
 
-
-
-
 ```{r forecast ARMIA seasonal adjusted, include = FALSE}
 # Forecasts of Section 2 ARIMA model on Train Dataset [Jan 2022 to Dec 2023]
 test.size = (2024-2022)*12 # =24
@@ -605,20 +604,27 @@ rmse_monthly_yearly <- sqrt(mean(selected_df_monthly_yearly$diff_squared))
 print(paste("ARIMA model Root Mean Squared Error (RMSE):", rmse_monthly_yearly))
 
 ```
+
 ```{r train ARIMA non-seasonal model, include = FALSE}
 # Developing model from non-seasonal adjusted dataset
 model.bic_weekly_ARIMA <-train_data_non_season %>%
   model(fable::ARIMA(value ~ 0:1 + pdq(0:4,0:2,0:4) + 
                        PDQ(0:5,0:3,0:5, period=12),
                      ic="bic", stepwise=F, greedy=F))
-
- model.bic_weekly_ARIMA %>%
-  report()
 ```
 
-```{r forecast non seasonal arima model, echo=FALSE, message=FALSE}
+```{r train linear seasonal adjusted model, echo = FALSE }
+# **Forecasts of Section 2 LINEAR model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
+# LINEAR model development on Training dataset for the period Jan 1997 to Dec 2021
+train_data_seasonally_adjusted %>% 
+  model(model_trend =  TSLM(season_adjust ~ trend() + season() )) -> fit_linear_season_adjusted_yeary_monthly
 
-test.size = (2024-2022) * 4 * 12 # = 96?
+```
+
+```{r forecast linear seasonal adjusted model, echo=FALSE}
+
+# Forecasts of Section 2 LINEAR model on Test Dataset [Jan 2022 to Dec 2023]
+test.size = (2024 - 2022) * 12 #24
 
 model.forecasts_ARIMA_weekly <-forecast(model.bic_weekly_ARIMA, h=test.size)
 
@@ -641,6 +647,7 @@ rmse_yearly_weekly_non_season <- sqrt(mean(selected_df_weekly$diff_squared))
 Consider adding the equations of ARIMA seasonal and non seasonal here
 $equation \space here$
 
+
 ```{r}
 kable(
   data.frame('model_type' = c('arima seasonal','arima non seasonal'),
@@ -653,12 +660,29 @@ kable(
 ```
 
 
+# linear model comparison here:
+Next we train linear models ...
+Aruna to complete
 ```{r train linear seasonal adjusted model, echo = FALSE }
 
 # LINEAR model development on Training dataset for the period Jan 1997 to Dec 2021
 train_data_seasonally_adjusted %>% 
   model(model_trend =  TSLM(season_adjust ~ trend() + season() )) -> fit_linear_season_adjusted_yeary_monthly
 
+```
+
+
+```{r train ARIMA non-seasonal model, include = FALSE}
+# ### ARIMA model development on Non-seasonally adjusted training datase
+
+# Developing model from non-seasonal adjusted dataset
+model.bic_weekly_ARIMA <-train_data_non_season %>%
+  model(fable::ARIMA(value ~ 0:1 + pdq(0:4,0:2,0:4) + 
+                       PDQ(0:5,0:3,0:5, period=12),
+                     ic="bic", stepwise=F, greedy=F))
+
+ model.bic_weekly_ARIMA %>%
+  report()
 ```
 
 
@@ -699,7 +723,7 @@ train_data_non_season %>%
 
 ```{r forecast linear non seasonal model}
 
-test.size = 96 # fix please
+test.size = (2024- 2022) * 4 * 12 # = 96
 
 model.forecasts_weekly_non_seasonal <-forecast(fit_linear_NON_season_weekly, h=test.size)
 model.forecasts_weekly_non_seasonal  
@@ -761,9 +785,6 @@ To ensure a fair comparison of these predictions we aggregated the current datas
 
 
 ### (3 points) Task Part 6b: How bad could it get?
-**With the non-seasonally adjusted data series, generate predictions for when atmospheric CO2 is expected to be at 420 ppm and 500 ppm levels for the first and final times (consider prediction intervals as well as point estimates in your answer). Generate a prediction for atmospheric CO2 levels in the year 2122. How confident are you that these will be accurate predictions?.Generate a prediction for atmospheric CO2 levels in the year 2100. How confident are you that these will be accurate predictions?**
-
-**Observations**
 The best model we derived from Part 5b was the ARIMA model. Utilizing this model, we projected CO2 levels on the original weekly dataset which is a non-seasonally adjusted data. Our analysis indicated that CO2 levels are predicted to reach 420 ppm in 2023, but are not expected to reach 500 ppm. We observed that in the year 3075, the upper boundary touched 500 ppm, but with low confidence. These predictions can be influenced by the data's aggregation level. For instance, weekly aggregated data may yield more vague predictions because the number of datapoints are larger resulting in higher noise and variability in data, whereas monthly aggregated data can provide slightly improved predictions. On examining the weekly level aggregated data, we noticed that the prediction boundary intervals curve downwards, which is not ideal because it captures too much noise and adds variability. However, with monthly level data, predictions are comparatively better, and the boundary intervals are narrower and upward. According to our analysis, the 500 ppm threshold is projected to be reached by the year 2050.
 
 The predictions for 2122 is 425 with boundary limits of 310-555 in the weekly aggregated dataset. However, in the monthly aggregated dataset, the prediction for 2122 is 650 with narrower boundary levels.
