@@ -793,7 +793,7 @@ co2_present_monthly_raw <- "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_
 co2_present_raw=read.csv(co2_present_monthly_raw,skip=56)
 
 co2_present_month <- co2_present_raw %>% 
-  mutate(time_index=make_date(year,month)) %>% 
+  mutate(time_index=lubridate::make_date(year,month)) %>% 
   dplyr::select(time_index,average) %>%
   as_tsibble(index = time_index) %>%
   mutate(average =replace(average,average<=-999,NA)) %>%
