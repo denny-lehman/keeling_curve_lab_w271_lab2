@@ -28,8 +28,6 @@ The data measures the monthly average atmospheric CO2 concentration from 1959 to
 Fig.1 shows a clear long-term upward trend, which is confirmed by Fig.2 where the growth rate for each year is above zero. Fig.2 also suggests the average growth rate after 1970 is higher than that before 1970, although there's no evidence of accelerating growth. The ACF plots in Fig.3 and Fig.4 suggest the original data is non-stationary but its first difference is stationary. More formally, the KPSS tests below confirm the observations above.
 
 ```{r load packages, echo = FALSE, message = FALSE}
-
-
 library(tidyverse)
 library(ggplot2)
 library(feasts)
@@ -481,9 +479,6 @@ arima_vs_actuals %>%
 The ARIMA forecast(Fig.26) is much closer to the realized CO2 levels than the Linear Model forecast. The only difference observed, is that the ARIMA model appears to have forecasted a linear trend, while the realized CO2 levels followed an almost exponential growth.
 
 
-
-
-
 ## 4b.Evaluate the performance of 1997 linear and ARIMA models
 
 ```{r}
@@ -556,8 +551,6 @@ train_data_non_season <- tsibble::fill_gaps(train_data_non_season)
 ```
 
 ```{r train the ARIMA seasonally adjusted, include=FALSE }
-
-
 model.bic_monthlyyearly <-train_data_seasonally_adjusted %>%
   model(fable::ARIMA(season_adjust ~ 0:1 + pdq(0:3,0:2,0:3) + 
                        PDQ(0:8,0:3,0:8, period=12),
@@ -638,13 +631,16 @@ selected_df_weekly$diff_squared <- (selected_df_weekly$predicted - selected_df_w
 # Calculate the RMSE
 rmse_yearly_weekly_non_season <- sqrt(mean(selected_df_weekly$diff_squared))
 
-
 ```
-Consider adding the equations of ARIMA seasonal and non seasonal here
+
+
+*Consider adding the equations of ARIMA seasonal and non seasonal here*
+*Consider adding plots next to each other here* @Mingxi
+
 $equation \space here$
 
+```{r , echo=FALSE}
 
-```{r}
 kable(
   data.frame('model_type' = c('arima seasonal','arima non seasonal'),
            'model equation' = c('ARIMA(0,2,2)(4,0,0)[12]','ARIMA(2,1,4) w/ drift '),
@@ -656,15 +652,14 @@ kable(
 ```
 
 
-# linear model comparison here:
-Next we train linear models ...
-Aruna to complete
-```{r train linear seasonal adjusted model, echo = FALSE }
 
-# LINEAR model development on Training dataset for the period Jan 1997 to Dec 2021
+*add analysis of ARIMA's here. what can we conclude?*
+
+
+Next, we fit a polynomial time-trend model to the seasonally-adjusted series and compare its performance to the ARIMA model. Using the TSLM package, we created our best fit model.
+```{r train linear seasonal adjusted model, echo = FALSE }
 train_data_seasonally_adjusted %>% 
   model(model_trend =  TSLM(season_adjust ~ trend() + season() )) -> fit_linear_season_adjusted_yeary_monthly
-
 ```
 
 
@@ -684,8 +679,6 @@ model.bic_weekly_ARIMA <-train_data_non_season %>%
 
 
 ```{r forecast linear seasonal adjusted model, echo=FALSE}
-
-# Forecasts of Section 2 LINEAR model on Test Dataset [Jan 2022 to Dec 2023]
 test.size = (2024-2022)*12 #24
 
 model.forecasts__season_linear_yearly_monthly <-forecast(fit_linear_season_adjusted_yeary_monthly, h=test.size)
@@ -707,7 +700,22 @@ rmse_seasonal_yearly_monthly <- sqrt(mean(selected_df_yearly_monthly_linear$diff
 ```
 
 
-```{r train lienar non seasonal model, echo = FALSE, fig.height=3 }
+
+```{r ,echo=FALSE}
+kable(
+  data.frame('model_type' = c('ARIMA seasonl', 'linear seasonal'),
+           'model equation' = c('equation here','equation here'),
+           'BIC score' = c('fix', 'fix'),
+           'test RMSE' = c("rmse_seasonal_yearly_monthly", "rmse_weekly_non_seasonal")
+           )
+  , caption = 'linear model comparison'
+)
+```
+
+
+* remove code for non seasonal model *
+
+```{r train linear non seasonal model, echo = FALSE, fig.height=3 }
 # train_data_non_season <- train_data_non_season%>%as_tsibble()
 train_data_non_season %>% 
   model(model_trend =  TSLM(value ~ trend() + season() )) ->
@@ -716,15 +724,14 @@ train_data_non_season %>%
 ```
 
 
+```{r forecast linear non seasonal model, echo=FALSE}
 
-```{r forecast linear non seasonal model}
-
-test.size = (2024- 2022) * 4 * 12 # = 96
+test.size = (2024-2022) * 12 * 4 # = 96
 
 model.forecasts_weekly_non_seasonal <-forecast(fit_linear_NON_season_weekly, h=test.size)
+
 # Merge the two data frames on the 'index' column, and handle missing values with 0
 merged_df_weekly_non_seasonal <- merge(model.forecasts_weekly_non_seasonal, test_data_non_season, by = "time_index", all.x = TRUE)
-# merged_df_yearly[is.na(merged_df)] <- 0  # Replace missing values with 0
 
 # Select the desired columns and rename them if needed
 selected_weekly_non_seasonal <- merged_df_weekly_non_seasonal %>%
@@ -737,14 +744,8 @@ selected_weekly_non_seasonal$diff_squared <- (selected_weekly_non_seasonal$predi
 # Calculate the RMSE
 rmse_weekly_non_seasonal <- sqrt(mean(selected_weekly_non_seasonal$diff_squared))
 
-# Print the RMSE
-print(paste("Root Mean Squared Error (RMSE):", rmse_weekly_non_seasonal))
-
 ```
 
-
-
-# MAKE TABLE HERE
 
 The ARIMA models were trained on the training dataset and evaluated on the test dataset, yielding an RMSE value of 0.83. Similarly we conducted a parallel analysis on the non seasonal adjusted data, resulting in an RMSE value of 0.11. Interestingly, the non-seasonally adjusted ARIMA model showcased slightly better performance than its seasonally adjusted counterpart.
 
@@ -755,27 +756,6 @@ Additionally, we compared the non-seasonally adjusted ARIMA model with a polynom
 In the previous section, we conducted exploratory data analysis to visually assess the forecast of both the linear model and ARIMA model for atmospheric C02 levels. These models captured the historic trends and patterns effectively up to a certain point 1997. However as we moved from 1997, the forecasted lines started to deviate, making it challenging to determine which model better fits the data. To quantitatively evaluate the accuracy of the models, we conducted a formal evaluation using the Root Mean Squared Error (RMSE) test. Both the ARIMA and linear models were developed using data from 1974 to 1993. We used these models to forecast the atmospheric CO2 levels until 2023. Since models were built on a monthly dataset, the predictions we obtained were also on a monthly basis for the period from 1993 to 2023. 
 
 To ensure a fair comparison of these predictions we aggregated the current dataset to a monthly level. The model performance of ARIMA model , after comparing its predictions with the current dataset, resulted in an RMSE of 51.66 On the other hand, the linear model which considered both the seasonal and trend components, had an RMSE of 14.037. It looks like that data has certain trend and pattern which are better captured by linear regression.
-
-
-
-
-
-
-
-
-
-**Forecasts of Section 2 LINEAR model on Train Dataset [Seasonal adjusted] [Jan 2022 to Dec 2023]**
-
-
-### NON-Season
-
-
-
-
-
-### ARIMA model development on Non-seasonally adjusted training datase
-
-
 
 
 
